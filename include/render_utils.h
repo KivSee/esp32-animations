@@ -11,7 +11,7 @@
 class RenderUtils {
 
 public:
-    RenderUtils(HSV leds_hsv[], int numberOfLeds) : 
+    RenderUtils(kivsee_render::HSV leds_hsv[], int numberOfLeds) : 
         m_numberOfLeds(numberOfLeds),
         m_leds_hsv(leds_hsv), 
         m_leds_rgb(numberOfLeds, DATA_PIN) 
@@ -24,7 +24,7 @@ public:
 
 private:
     int m_numberOfLeds = 0;
-    HSV *m_leds_hsv;
+    kivsee_render::HSV *m_leds_hsv;
     NeoPixelBus<COLOR_ORDER, Neo800KbpsMethod> m_leds_rgb;
 };
 

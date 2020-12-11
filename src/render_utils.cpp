@@ -5,7 +5,7 @@
 void RenderUtils::Show()
 {
   for(int i=0; i<m_numberOfLeds; i++) {
-    const HSV &hsvVal = m_leds_hsv[i];
+    const kivsee_render::HSV &hsvVal = m_leds_hsv[i];
     float normalizedBrightness = hsvVal.val * hsvVal.val;
     HsbColor neoPixelColor(fmod(hsvVal.hue, 1.0f) , hsvVal.sat, normalizedBrightness);
     m_leds_rgb.SetPixelColor(i, neoPixelColor);

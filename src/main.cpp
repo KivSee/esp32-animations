@@ -10,6 +10,9 @@
 
 #include <render_utils.h>
 // #include <protobuf_infra.h>
+#include <pb_encode.h>
+#include <pb_decode.h>
+#include <color/rainbow.h>
 
 #ifndef NUM_LEDS
 #warning NUM_LEDS not definded. using default value of 300
@@ -26,17 +29,22 @@
 String monitorTopic(MONITOR_TOPIC_PREFIX "/");
 
 #define MAX_THING_NAME_LENGTH 16
-char thing_name[MAX_THING_NAME_LENGTH];
+char thing_name[MAX_THING_NAME_LENGTH] = THING_NAME;
 
 const unsigned int WD_TIMEOUT_MS = 2000;
 
-HSV leds_hsv[NUM_LEDS];
+kivsee_render::color::Rainbow *effect = nullptr;
+kivsee_render::HSV leds_hsv[NUM_LEDS];
+std::vector<kivsee_render::HSV *> segment(NUM_LEDS);
 RenderUtils renderUtils(leds_hsv, NUM_LEDS);
 
 TaskHandle_t Task1;
 
-QueueHandle_t wdQueue;
-const int wdQueueSize = 10;
+QueueHandle_t effectQueue;
+const int effectQueueSize = 10;
+
+QueueHandle_t effectDelQueue;
+const int effectDelQueueSize = 10;
 
 void PrintCorePrefix()
 {
@@ -55,6 +63,20 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
   }
   Serial.println();
 
+  if (strncmp("animations/", topic, 11) == 0) {
+    // uint8_t buff[100] = {10, 35, 58, 33, 10, 7, 18, 5, 21, 0, 0, 128, 63, 21, 0, 0, 128, 63, 26, 12, 34, 10, 13, 0, 0, 160, 64, 21, 0, 0, 128, 62, 37, 0, 0, 128, 63, 18, 7, 10, 5, 13, 0, 0, 128, 63};
+    // pb_istream_t in_stream = pb_istream_from_buffer(buff, sizeof(buff));
+    pb_istream_t in_stream = pb_istream_from_buffer(payload, length);
+    kivsee_render::color::Rainbow *new_effect;
+    new_effect = new kivsee_render::color::Rainbow();
+    new_effect->InitFromPb(&in_stream);
+    for (int i = 0; i < NUM_LEDS; i++)
+    {
+        segment[i] = &leds_hsv[i];
+    }
+    new_effect->Init(&segment);
+    xQueueSend(effectQueue, &new_effect, portMAX_DELAY);
+  }
   // if (strncmp("animations/", topic, 11) == 0) {
   //   int songNameStartIndex = 11 + strlen(thing_name) + 1;
   //   String songName = String(topic + songNameStartIndex);
@@ -118,9 +140,9 @@ void ConnectToMessageBroker() {
     Serial.println("connecting to mqtt");
     if(client.connect(thing_name, monitorTopic.c_str(), 1, true, lastWillMsg)) {
         Serial.println("connected to message broker");
-        client.subscribe((String("objects-config/") + String(thing_name)).c_str(), 1);
+        // client.subscribe((String("objects-config/") + String(thing_name)).c_str(), 1);
         // client.subscribe("current-song", 1);
-        // client.subscribe((String("animations/") + String(thing_name) + String("/#")).c_str(), 1);
+        client.subscribe((String("animations/") + String(thing_name) + String("/#")).c_str(), 1);
     }
     else {
         Serial.print("mqtt connect failed. error state:");
@@ -192,6 +214,11 @@ void MonitorLoop( void * parameter) {
     }
     client.loop();
 
+    kivsee_render::color::Rainbow *effect_from_del_q;
+    if(xQueueReceive(effectDelQueue, &effect_from_del_q, 0) == pdTRUE) {
+      delete effect_from_del_q;
+    }
+
     ArduinoOTA.handle();
 
     vTaskDelay(5);
@@ -203,13 +230,14 @@ void setup() {
   Serial.begin(115200);
   disableCore0WDT();
 
-  wdQueue = xQueueCreate( wdQueueSize, sizeof(int) );
+  effectQueue = xQueueCreate( effectQueueSize, sizeof(kivsee_render::color::Rainbow *) );
+  effectDelQueue = xQueueCreate( effectDelQueueSize, sizeof(kivsee_render::color::Rainbow *) );
 
   renderUtils.Setup();
 
   Serial.print("Thing name: "); Serial.println(thing_name);
   monitorTopic += thing_name;
-  Serial.print("Mqtt monitor topic is: "); Serial.println(thing_name);
+  Serial.print("Mqtt monitor topic is: "); Serial.println(monitorTopic);
 
   xTaskCreatePinnedToCore(
       MonitorLoop, /* Function to implement the task */
@@ -226,14 +254,22 @@ unsigned int lastPrint1Time = millis();
 
 void loop() {
   unsigned long currentMillis = millis();
+  kivsee_render::color::Rainbow *effect_from_q;
 
   if(currentMillis - lastPrint1Time >= 5000) {
     Serial.println("[1] core 1 alive");
     lastPrint1Time = currentMillis;
   }
 
-  renderUtils.Clear();
+  if(xQueueReceive(effectQueue, &effect_from_q, 0) == pdTRUE) {
+    xQueueSend(effectDelQueue, &effect, 0);
+    effect = effect_from_q;
+  }
 
+  renderUtils.Clear();
+  if (effect != nullptr) {
+    effect->Render((currentMillis % 10000) / 10000.0, 0);
+  }
   renderUtils.Show();
 
   vTaskDelay(5);

@@ -12,7 +12,8 @@
 // #include <protobuf_infra.h>
 #include <pb_encode.h>
 #include <pb_decode.h>
-#include <color/rainbow.h>
+#include <effect.h>
+#include <animation.h>
 
 #ifndef NUM_LEDS
 #warning NUM_LEDS not definded. using default value of 300
@@ -33,7 +34,8 @@ char thing_name[MAX_THING_NAME_LENGTH] = THING_NAME;
 
 const unsigned int WD_TIMEOUT_MS = 2000;
 
-kivsee_render::color::Rainbow *effect = nullptr;
+// core 1 accessed
+kivsee_render::Animation *animation = nullptr;
 kivsee_render::HSV leds_hsv[NUM_LEDS];
 std::vector<kivsee_render::HSV *> segment(NUM_LEDS);
 RenderUtils renderUtils(leds_hsv, NUM_LEDS);
@@ -67,15 +69,24 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
     // uint8_t buff[100] = {10, 35, 58, 33, 10, 7, 18, 5, 21, 0, 0, 128, 63, 21, 0, 0, 128, 63, 26, 12, 34, 10, 13, 0, 0, 160, 64, 21, 0, 0, 128, 62, 37, 0, 0, 128, 63, 18, 7, 10, 5, 13, 0, 0, 128, 63};
     // pb_istream_t in_stream = pb_istream_from_buffer(buff, sizeof(buff));
     pb_istream_t in_stream = pb_istream_from_buffer(payload, length);
-    kivsee_render::color::Rainbow *new_effect;
-    new_effect = new kivsee_render::color::Rainbow();
-    new_effect->InitFromPb(&in_stream);
+    kivsee_render::Animation *new_animation = nullptr;
+    void *arg = &new_animation;
+    bool success = kivsee_render::DecodeAnimationFromPbStream(&in_stream, nullptr, &arg);
+    if(!success) {
+      Serial.println("failed to handle new animation msg");
+      return;
+    }
+
     for (int i = 0; i < NUM_LEDS; i++)
     {
         segment[i] = &leds_hsv[i];
     }
-    new_effect->Init(&segment);
-    xQueueSend(effectQueue, &new_effect, portMAX_DELAY);
+    for(::kivsee_render::Animation::EffectsVec::iterator it = new_animation->effects.begin(); it != new_animation->effects.end(); ++it) {
+        ::kivsee_render::Effect *effect = *it;
+        effect->Init(&segment);
+    }
+
+    xQueueSend(effectQueue, &new_animation, portMAX_DELAY);
   }
   // if (strncmp("animations/", topic, 11) == 0) {
   //   int songNameStartIndex = 11 + strlen(thing_name) + 1;
@@ -214,9 +225,9 @@ void MonitorLoop( void * parameter) {
     }
     client.loop();
 
-    kivsee_render::color::Rainbow *effect_from_del_q;
-    if(xQueueReceive(effectDelQueue, &effect_from_del_q, 0) == pdTRUE) {
-      delete effect_from_del_q;
+    kivsee_render::Animation *animation_from_del_q;
+    if(xQueueReceive(effectDelQueue, &animation_from_del_q, 0) == pdTRUE) {
+      delete animation_from_del_q;
     }
 
     ArduinoOTA.handle();
@@ -230,8 +241,8 @@ void setup() {
   Serial.begin(115200);
   disableCore0WDT();
 
-  effectQueue = xQueueCreate( effectQueueSize, sizeof(kivsee_render::color::Rainbow *) );
-  effectDelQueue = xQueueCreate( effectDelQueueSize, sizeof(kivsee_render::color::Rainbow *) );
+  effectQueue = xQueueCreate( effectQueueSize, sizeof(kivsee_render::Animation *) );
+  effectDelQueue = xQueueCreate( effectDelQueueSize, sizeof(kivsee_render::Animation *) );
 
   renderUtils.Setup();
 
@@ -254,21 +265,21 @@ unsigned int lastPrint1Time = millis();
 
 void loop() {
   unsigned long currentMillis = millis();
-  kivsee_render::color::Rainbow *effect_from_q;
+  kivsee_render::Animation *animation_from_q;
 
   if(currentMillis - lastPrint1Time >= 5000) {
     Serial.println("[1] core 1 alive");
     lastPrint1Time = currentMillis;
   }
 
-  if(xQueueReceive(effectQueue, &effect_from_q, 0) == pdTRUE) {
-    xQueueSend(effectDelQueue, &effect, 0);
-    effect = effect_from_q;
+  if(xQueueReceive(effectQueue, &animation_from_q, 0) == pdTRUE) {
+    xQueueSend(effectDelQueue, &animation, 0);
+    animation = animation_from_q;
   }
 
   renderUtils.Clear();
-  if (effect != nullptr) {
-    effect->Render((currentMillis % 10000) / 10000.0, 0);
+  if (animation != nullptr) {
+    animation->Render(currentMillis);
   }
   renderUtils.Show();
 

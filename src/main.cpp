@@ -39,7 +39,7 @@ const unsigned int WD_TIMEOUT_MS = 2000;
 TimeSync::TimeSyncClient timesync;
 
 QueueHandle_t runtime_animation_queue;
-QueueHandle_t ephoc_time_update_queue;
+QueueHandle_t epoch_time_update_queue;
 QueueHandle_t runtime_animation_delete_queue;
 esp32animations::Renderer *renderer = nullptr;
 
@@ -74,7 +74,13 @@ void HandleTimedAnimationMsg(byte *payload, unsigned int length)
     Serial.println("failed to handle new animation msg");
     return;
   }
-  new_timed_animation.start_time_esp_millis = millis();
+  if(timed_animation.start_time_ms_since_epoch) {
+    new_timed_animation.start_time_esp_millis = 0;
+    new_timed_animation.start_time_ms_since_epoch = timed_animation.start_time_ms_since_epoch;
+  } else {
+    new_timed_animation.start_time_esp_millis = millis();
+    new_timed_animation.start_time_ms_since_epoch = 0;
+  }
 
   for (int i = 0; i < NUM_LEDS; i++)
   {
@@ -252,6 +258,11 @@ void MonitorLoop(void *parameter)
       Serial.println("TIME CHANGED. new synced clock is availible to the esp");
     }
 
+    if(isTimeChanged || isFirstClockUpdate) {
+      int64_t espStartTime = timesync.getEspStartTimeMs();
+      xQueueSend(epoch_time_update_queue, &espStartTime, portMAX_DELAY);
+    }
+
     ConnectToWifi();
     ConnectToMessageBroker();
     unsigned int currTime = millis();
@@ -291,9 +302,9 @@ void setup()
   disableCore0WDT();
 
   runtime_animation_queue = xQueueCreate(5, sizeof(esp32animations::RuntimeAnimation));
-  ephoc_time_update_queue = xQueueCreate(5, sizeof(esp32animations::RuntimeAnimation));
+  epoch_time_update_queue = xQueueCreate(5, sizeof(int64_t));
   runtime_animation_delete_queue = xQueueCreate(5, sizeof(esp32animations::RuntimeAnimation));
-  renderer = new esp32animations::Renderer(runtime_animation_queue, ephoc_time_update_queue, runtime_animation_delete_queue, &renderUtils);
+  renderer = new esp32animations::Renderer(runtime_animation_queue, epoch_time_update_queue, runtime_animation_delete_queue, &renderUtils);
 
   renderUtils.Setup();
 

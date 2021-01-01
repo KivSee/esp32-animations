@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\x0f\x61nimation.proto\x1a\reffects.proto\"r\n\x13TimedAnimationProto\x12\"\n\tanimation\x18\x01 \x01(\x0b\x32\x0f.AnimationProto\x12\x14\n\x0ctrigger_name\x18\x02 \x01(\t\x12!\n\x19start_time_ms_since_ephoc\x18\x03 \x01(\x04\x62\x06proto3'
+  serialized_pb=b'\n\x0f\x61nimation.proto\x1a\reffects.proto\"r\n\x13TimedAnimationProto\x12\"\n\tanimation\x18\x01 \x01(\x0b\x32\x0f.AnimationProto\x12\x14\n\x0ctrigger_name\x18\x02 \x01(\t\x12!\n\x19start_time_ms_since_epoch\x18\x03 \x01(\x04\x62\x06proto3'
   ,
   dependencies=[effects__pb2.DESCRIPTOR,])
 
@@ -50,7 +50,7 @@ _TIMEDANIMATIONPROTO = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='start_time_ms_since_ephoc', full_name='TimedAnimationProto.start_time_ms_since_ephoc', index=2,
+      name='start_time_ms_since_epoch', full_name='TimedAnimationProto.start_time_ms_since_epoch', index=2,
       number=3, type=4, cpp_type=4, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,

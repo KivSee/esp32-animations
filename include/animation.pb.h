@@ -14,7 +14,7 @@
 typedef struct _TimedAnimationProto {
     pb_callback_t animation;
     pb_callback_t trigger_name;
-    uint64_t start_time_ms_since_ephoc;
+    uint64_t start_time_ms_since_epoch;
 } TimedAnimationProto;
 
 
@@ -29,13 +29,13 @@ extern "C" {
 /* Field tags (for use in manual encoding/decoding) */
 #define TimedAnimationProto_animation_tag        1
 #define TimedAnimationProto_trigger_name_tag     2
-#define TimedAnimationProto_start_time_ms_since_ephoc_tag 3
+#define TimedAnimationProto_start_time_ms_since_epoch_tag 3
 
 /* Struct field encoding specification for nanopb */
 #define TimedAnimationProto_FIELDLIST(X, a) \
 X(a, CALLBACK, OPTIONAL, MESSAGE,  animation,         1) \
 X(a, CALLBACK, SINGULAR, STRING,   trigger_name,      2) \
-X(a, STATIC,   SINGULAR, UINT64,   start_time_ms_since_ephoc,   3)
+X(a, STATIC,   SINGULAR, UINT64,   start_time_ms_since_epoch,   3)
 #define TimedAnimationProto_CALLBACK pb_default_field_callback
 #define TimedAnimationProto_DEFAULT NULL
 #define TimedAnimationProto_animation_MSGTYPE AnimationProto

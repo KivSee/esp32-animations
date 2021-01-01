@@ -8,12 +8,14 @@
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 
+#include <TimeSync.hpp>
 #include <render_utils.h>
 // #include <protobuf_infra.h>
 #include <pb_decode.h>
 #include <animation.pb.h>
 #include <effect.h>
 #include <animation.h>
+#include <renderer.h>
 
 #ifndef NUM_LEDS
 #warning NUM_LEDS not definded. using default value of 300
@@ -34,25 +36,19 @@ char thing_name[MAX_THING_NAME_LENGTH] = THING_NAME;
 
 const unsigned int WD_TIMEOUT_MS = 2000;
 
-struct TimedAnimation
-{
-  kivsee_render::Animation *animation;
-  unsigned long start_time_esp_millis;
-};
+TimeSync::TimeSyncClient timesync;
+
+QueueHandle_t runtime_animation_queue;
+QueueHandle_t ephoc_time_update_queue;
+QueueHandle_t runtime_animation_delete_queue;
+esp32animations::Renderer *renderer = nullptr;
 
 // core 1 accessed
-TimedAnimation current_animation {nullptr, 0};
 kivsee_render::HSV leds_hsv[NUM_LEDS];
 std::vector<kivsee_render::HSV *> segment(NUM_LEDS);
 RenderUtils renderUtils(leds_hsv, NUM_LEDS);
 
 TaskHandle_t Task1;
-
-QueueHandle_t timed_animation_queue;
-const int effectQueueSize = 10;
-
-QueueHandle_t timed_animation_del_queue;
-const int effectDelQueueSize = 10;
 
 void PrintCorePrefix()
 {
@@ -66,7 +62,7 @@ void HandleTimedAnimationMsg(byte *payload, unsigned int length)
 
   pb_istream_t in_stream = pb_istream_from_buffer(payload, length);
 
-  TimedAnimation new_timed_animation;
+  esp32animations::RuntimeAnimation new_timed_animation;
   TimedAnimationProto timed_animation = TimedAnimationProto_init_zero;
 
   timed_animation.animation.funcs.decode = &kivsee_render::DecodeAnimationFromPbStream;
@@ -90,7 +86,7 @@ void HandleTimedAnimationMsg(byte *payload, unsigned int length)
     effect->Init(&segment);
   }
 
-  xQueueSend(timed_animation_queue, &new_timed_animation, portMAX_DELAY);
+  xQueueSend(runtime_animation_queue, &new_timed_animation, portMAX_DELAY);
 }
 
 void mqtt_callback(char *topic, byte *payload, unsigned int length)
@@ -192,7 +188,6 @@ void ConnectToMessageBroker()
 
 void MonitorLoop(void *parameter)
 {
-
   ConnectToWifi();
 
   // Port defaults to 3232
@@ -237,10 +232,26 @@ void MonitorLoop(void *parameter)
 
   ArduinoOTA.begin();
 
+  IPAddress ntpServerIp;
+  ntpServerIp.fromString(TIME_SERVER_IP);
+  timesync.updateConfiguration(15, 1000 * 60 * 10, 250, 1000 * 60 * 2);
+  timesync.setup(ntpServerIp, 12321);
+
   unsigned int lastReportTime = millis();
   unsigned int lastMonitorTime = millis();
   for (;;)
   {
+    bool isTimeChanged, isFirstClockUpdate;
+    timesync.loop(&isTimeChanged, &isFirstClockUpdate);
+    if (isFirstClockUpdate)
+    {
+      Serial.println("TIME IS NOW VALID. the esp clock was not valid and now it is");
+    }
+    else if (isTimeChanged)
+    {
+      Serial.println("TIME CHANGED. new synced clock is availible to the esp");
+    }
+
     ConnectToWifi();
     ConnectToMessageBroker();
     unsigned int currTime = millis();
@@ -262,8 +273,8 @@ void MonitorLoop(void *parameter)
     }
     client.loop();
 
-    TimedAnimation animation_from_del_q;
-    if (xQueueReceive(timed_animation_del_queue, &animation_from_del_q, 0) == pdTRUE)
+    esp32animations::RuntimeAnimation animation_from_del_q;
+    if (xQueueReceive(runtime_animation_delete_queue, &animation_from_del_q, 0) == pdTRUE)
     {
       delete animation_from_del_q.animation;
     }
@@ -279,8 +290,10 @@ void setup()
   Serial.begin(115200);
   disableCore0WDT();
 
-  timed_animation_queue = xQueueCreate(effectQueueSize, sizeof(TimedAnimation));
-  timed_animation_del_queue = xQueueCreate(effectDelQueueSize, sizeof(TimedAnimation));
+  runtime_animation_queue = xQueueCreate(5, sizeof(esp32animations::RuntimeAnimation));
+  ephoc_time_update_queue = xQueueCreate(5, sizeof(esp32animations::RuntimeAnimation));
+  runtime_animation_delete_queue = xQueueCreate(5, sizeof(esp32animations::RuntimeAnimation));
+  renderer = new esp32animations::Renderer(runtime_animation_queue, ephoc_time_update_queue, runtime_animation_delete_queue, &renderUtils);
 
   renderUtils.Setup();
 
@@ -305,7 +318,6 @@ unsigned int lastPrint1Time = millis();
 void loop()
 {
   unsigned long current_millis = millis();
-  TimedAnimation animation_from_q;
 
   if (current_millis - lastPrint1Time >= 5000)
   {
@@ -313,20 +325,7 @@ void loop()
     lastPrint1Time = current_millis;
   }
 
-  if (xQueueReceive(timed_animation_queue, &animation_from_q, 0) == pdTRUE)
-  {
-    Serial.println("[1] received new animation from queue");
-    xQueueSend(timed_animation_del_queue, &current_animation, 0);
-    current_animation = animation_from_q;
-  }
-
-  renderUtils.Clear();
-  if (current_animation.animation != nullptr)
-  {
-    unsigned long current_animation_time = current_millis - current_animation.start_time_esp_millis;
-    current_animation.animation->Render(current_animation_time);
-  }
-  renderUtils.Show();
-
+  renderer->loop(current_millis);
+  
   vTaskDelay(5);
 }

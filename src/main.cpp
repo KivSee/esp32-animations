@@ -3,7 +3,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <secrets.h>
-#include <PubSubClient.h>
+
 #include <ESPmDNS.h>
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
@@ -16,26 +16,17 @@
 #include <effect.h>
 #include <animation.h>
 #include <renderer.h>
+#include <mqtt_manager.h>
 
 #ifndef NUM_LEDS
 #warning NUM_LEDS not definded. using default value of 300
 #define NUM_LEDS 300
 #endif // NUM_LEDS
 
-#ifndef MQTT_BROKER_PORT
-#define MQTT_BROKER_PORT 1883
-#endif //MQTT_BROKER_PORT
-
-#ifndef MONITOR_TOPIC_PREFIX
-#define MONITOR_TOPIC_PREFIX "monitor"
-#endif // MONITOR_TOPIC_PREFIX
-String monitorTopic(MONITOR_TOPIC_PREFIX "/");
-
 #define MAX_THING_NAME_LENGTH 16
 char thing_name[MAX_THING_NAME_LENGTH] = THING_NAME;
 
 const unsigned int WD_TIMEOUT_MS = 2000;
-
 TimeSync::TimeSyncClient timesync;
 
 QueueHandle_t runtime_animation_queue;
@@ -48,6 +39,7 @@ kivsee_render::HSV leds_hsv[NUM_LEDS];
 std::vector<kivsee_render::HSV *> segment(NUM_LEDS);
 RenderUtils renderUtils(leds_hsv, NUM_LEDS);
 
+
 TaskHandle_t Task1;
 
 void PrintCorePrefix()
@@ -57,7 +49,7 @@ void PrintCorePrefix()
   Serial.print("]: ");
 }
 
-void HandleTimedAnimationMsg(byte *payload, unsigned int length)
+void HandleTimedAnimationMsg(const byte *payload, unsigned int length)
 {
 
   pb_istream_t in_stream = pb_istream_from_buffer(payload, length);
@@ -95,49 +87,22 @@ void HandleTimedAnimationMsg(byte *payload, unsigned int length)
   xQueueSend(runtime_animation_queue, &new_timed_animation, portMAX_DELAY);
 }
 
-void mqtt_callback(char *topic, byte *payload, unsigned int length)
-{
 
-  Serial.print("Message arrived, ");
-  Serial.print(length);
-  Serial.print(" [");
-  Serial.print(topic);
-  Serial.print("] ");
-  for (int i = 0; i < length; i++)
-  {
-    Serial.print((char)payload[i]);
-  }
-  Serial.println();
+class MqttCallbacks : public MqttManagerCallbacks {
 
-  if (strncmp("animations/", topic, 11) == 0)
-  {
-    HandleTimedAnimationMsg(payload, length);
-  }
-  // if (strncmp("animations/", topic, 11) == 0) {
-  //   int songNameStartIndex = 11 + strlen(thing_name) + 1;
-  //   String songName = String(topic + songNameStartIndex);
-  //   fsManager.SaveToFs((String("/music/") + songName).c_str(), payload, length);
+  public: 
+    void NewAnimationReceived(String triggerName, const byte *payload, unsigned int length) {
+      HandleTimedAnimationMsg(payload, length);
+    }
 
-  //   if(songOffsetTracker.GetCurrentFile() == songName) {
-  //     SendAnListUpdate();
-  //   }
+};
 
-  // } else if(strcmp("current-song", topic) == 0) {
-  //   songOffsetTracker.HandleCurrentSongMessage((char *)payload);
-  //   SendAnListUpdate();
+MqttCallbacks mqttCallbacks;
+MqttManager *mqttManager = createMqttManager(&mqttCallbacks);
 
-  // } else if(strncmp("objects-config", topic, 14) == 0) {
-  //   fsManager.SaveToFs("/objects-config", payload, length);
-  //   ESP.restart();
-  // }
-
-  Serial.print("[0] done handling mqtt callback: ");
-  Serial.println(topic);
-}
 
 void ConnectToWifi()
 {
-
   if (WiFi.status() == WL_CONNECTED)
     return;
 
@@ -160,35 +125,6 @@ void ConnectToWifi()
       }
     }
     Serial.println(" could not connect for 10 seconds. retry");
-  }
-}
-
-WiFiClient net;
-PubSubClient client(net);
-void ConnectToMessageBroker()
-{
-  if (client.connected())
-    return;
-
-  client.setServer(MQTT_BROKER_IP, MQTT_BROKER_PORT); // Broker IP is defined in platformio.ini
-  client.setCallback(mqtt_callback);
-  // StaticJsonDocument<128> json_doc;
-  // json_doc["ThingName"] = thing_name;
-  // json_doc["Alive"] = false;
-  char lastWillMsg[16] = "0";
-  // serializeJson(json_doc, lastWillMsg);
-  Serial.println("connecting to mqtt");
-  if (client.connect(thing_name, monitorTopic.c_str(), 1, true, lastWillMsg))
-  {
-    Serial.println("connected to message broker");
-    // client.subscribe((String("objects-config/") + String(thing_name)).c_str(), 1);
-    // client.subscribe("current-song", 1);
-    client.subscribe((String("animations/") + String(thing_name) + String("/#")).c_str(), 1);
-  }
-  else
-  {
-    Serial.print("mqtt connect failed. error state:");
-    Serial.println(client.state());
   }
 }
 
@@ -264,14 +200,8 @@ void MonitorLoop(void *parameter)
     }
 
     ConnectToWifi();
-    ConnectToMessageBroker();
+    mqttManager->connectToMessageBroker(thing_name);
     unsigned int currTime = millis();
-    if (currTime - lastMonitorTime >= 1000)
-    {
-      char monitorMsg[16] = "1";
-      client.publish(monitorTopic.c_str(), monitorMsg, true);
-      lastMonitorTime = currTime;
-    }
     if (currTime - lastReportTime >= 5000)
     {
       Serial.print("[0] current millis: ");
@@ -279,10 +209,10 @@ void MonitorLoop(void *parameter)
       Serial.print("[0] wifi client connected: ");
       Serial.println(WiFi.status() == WL_CONNECTED);
       Serial.print("[0] mqtt client connected: ");
-      Serial.println(client.connected());
+      Serial.println(mqttManager->connected());
       lastReportTime = currTime;
     }
-    client.loop();
+    mqttManager->loop();
 
     esp32animations::RuntimeAnimation animation_from_del_q;
     if (xQueueReceive(runtime_animation_delete_queue, &animation_from_del_q, 0) == pdTRUE)
@@ -310,10 +240,7 @@ void setup()
 
   Serial.print("Thing name: ");
   Serial.println(thing_name);
-  monitorTopic += thing_name;
-  Serial.print("Mqtt monitor topic is: ");
-  Serial.println(monitorTopic);
-
+  
   xTaskCreatePinnedToCore(
       MonitorLoop,   /* Function to implement the task */
       "MonitorTask", /* Name of the task */

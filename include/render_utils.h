@@ -6,7 +6,9 @@
 #include <NeoPixelBus.h>
 #include <secrets.h>
 
+#ifndef DATA_PIN
 #define DATA_PIN    2
+#endif // DATA_PIN
 
 class RenderUtils {
 

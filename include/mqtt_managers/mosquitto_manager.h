@@ -22,7 +22,6 @@ public:
             return;
 
         client.setServer(MQTT_BROKER_IP, MQTT_BROKER_PORT); // Broker IP is defined in platformio.ini
-        // client.setCallback(mqtt_callback);
         client.setCallback(std::bind(&MosquittoManager::mqtt_callback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
         Serial.println("connecting to mqtt");
         if (client.connect(thing_name))

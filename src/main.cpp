@@ -16,7 +16,7 @@
 #include <effect.h>
 #include <animation.h>
 #include <renderer.h>
-#include <mqtt_manager.h>
+#include <mqtt_managers/mqtt_manager.h>
 
 #ifndef NUM_LEDS
 #warning NUM_LEDS not definded. using default value of 300

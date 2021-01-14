@@ -39,3 +39,6 @@
 
 .vscode*
 */secrets.h
+*/mqtt_managers/gcp_mqtt/ciotc_config.h
+*/mqtt_managers/gcp_mqtt/ec_private.pem
+*/mqtt_managers/gcp_mqtt/ec_public.pem

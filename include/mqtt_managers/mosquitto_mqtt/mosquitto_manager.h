@@ -1,7 +1,7 @@
 #ifndef __MQTT_MANAGERS_MOSQUITTO_H__
 #define __MQTT_MANAGERS_MOSQUITTO_H__
 
-#include <mqtt_manager.h>
+#include <mqtt_managers/mqtt_manager.h>
 #include <PubSubClient.h>
 #include "WiFiClient.h"
 #include <functional>

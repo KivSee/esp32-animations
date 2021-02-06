@@ -52,6 +52,16 @@ void PrintCorePrefix()
 void HandleTimedAnimationMsg(const byte *payload, unsigned int length)
 {
 
+  Serial.print("HandleTimedAnimationMsg(): payload: ");
+  for (int i = 0; i < length; i++)
+  {        
+      Serial.print(payload[i], HEX);
+  }
+  Serial.println("");
+  Serial.print("length: ");
+  Serial.println(length);
+  
+
   pb_istream_t in_stream = pb_istream_from_buffer(payload, length);
 
   esp32animations::RuntimeAnimation new_timed_animation;

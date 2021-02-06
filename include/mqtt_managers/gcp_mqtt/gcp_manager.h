@@ -20,28 +20,44 @@ const String OFF = "off";
 
 MqttManagerCallbacks *callback_global;
 
-void messageReceived(String &topic, String &payload)
-{
-  callback_global->NewAnimationReceived("", payload.c_str(), payload.length);
+// bool has_suffix(const std::string &str, const std::string &suffix)
+// {
+//     return str.size() >= suffix.size() &&
+//            str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+// }
+
+void messageReceivedAdvanced(MQTTClient *client, char topic[], char bytes[], int length) {
+
+
+  Serial.print("messageReceivedAdvance9(): payload: ");
+  Serial.print((const char *) bytes);
+  Serial.print(" payload length: ");
+  Serial.println(length);
   
-  Serial.println("incoming: " + topic + " - " + payload);
-  if (payload == PARTY)
-  {
-    Serial.println("Let's party!");
-    // animation_party();
-    // callback->NewAnimationReceived(String(topic + 11), payload, length);
+  if (bytes == NULL || length == 0) {
+    Serial.println("empty payload");
+    return;
   }
-  else if (payload == WARM)
-  {
-    Serial.println("Warm & chill");
-    // animation_warm();
+//(topic.endsWith("/commands")
+  if (callback_global != NULL) {
+      callback_global->NewAnimationReceived("", (uint8_t *) bytes, length);
   }
-  else if (payload == OFF)
-  {
-    Serial.println("turning lights off");
-    // animation_off();
-  }
+
 }
+// void messageReceived(String &topic, String &payload)
+// {
+ 
+//   Serial.println("incoming: " + topic + " payload length: " + payload.length());
+  
+//   if (payload == NULL || payload.isEmpty()) {
+//     Serial.println("empty payload");
+//     return;
+//   }
+
+//   if (callback_global != NULL && (topic.endsWith("/commands"))) {
+//       callback_global->NewAnimationReceived("", (uint8_t *)payload.c_str(), payload.length());
+//   }
+// }
 
 CloudIoTCoreDevice *device;
 unsigned long iat = 0;
@@ -88,7 +104,7 @@ public:
       delay(10);
     }
 
-    gcp_mqtt->startMQTT();
+    gcp_mqtt->startMQTTAdvanced();
     gcp_mqtt->mqttConnect();
   }
 

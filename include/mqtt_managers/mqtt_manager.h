@@ -1,8 +1,8 @@
 #ifndef MQTT_MANAGER_H_INCLUDED
 #define MQTT_MANAGER_H_INCLUDED
 
-// #define MQTT_BROKER_GOOGLE 1
-#define MQTT_BROKER_MOSQITTO 1
+#define MQTT_BROKER_GOOGLE 1
+//#define MQTT_BROKER_MOSQITTO 1
 
 class MqttManagerCallbacks {
 

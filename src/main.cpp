@@ -17,6 +17,7 @@
 #include <animation.h>
 #include <renderer.h>
 #include <mqtt_managers/mqtt_manager.h>
+#include <fs_manager.h>
 
 #ifndef NUM_LEDS
 #warning NUM_LEDS not definded. using default value of 300
@@ -24,7 +25,10 @@
 #endif // NUM_LEDS
 
 #define MAX_THING_NAME_LENGTH 16
-char thing_name[MAX_THING_NAME_LENGTH] = THING_NAME;
+char thing_name[MAX_THING_NAME_LENGTH];
+
+#define MAX_THING_KEY_LENGTH 96
+char thing_key[MAX_THING_KEY_LENGTH];
 
 const unsigned int WD_TIMEOUT_MS = 2000;
 TimeSync::TimeSyncClient timesync;
@@ -33,6 +37,7 @@ QueueHandle_t runtime_animation_queue;
 QueueHandle_t epoch_time_update_queue;
 QueueHandle_t runtime_animation_delete_queue;
 esp32animations::Renderer *renderer = nullptr;
+FsManager fsManager;
 
 // core 1 accessed
 kivsee_render::HSV leds_hsv[NUM_LEDS];
@@ -108,7 +113,7 @@ class MqttCallbacks : public MqttManagerCallbacks {
 };
 
 MqttCallbacks mqttCallbacks;
-MqttManager *mqttManager = createMqttManager(&mqttCallbacks);
+MqttManager *mqttManager;
 
 
 void ConnectToWifi()
@@ -246,11 +251,30 @@ void setup()
   runtime_animation_delete_queue = xQueueCreate(5, sizeof(esp32animations::RuntimeAnimation));
   renderer = new esp32animations::Renderer(runtime_animation_queue, epoch_time_update_queue, runtime_animation_delete_queue, &renderUtils);
 
+  fsManager.setup();
   renderUtils.Setup();
 
+ bool hasThingName = fsManager.ReadThingName(thing_name, MAX_THING_NAME_LENGTH);
+  if(!hasThingName) 
+  {
+    Serial.println("Thing name not configured - upload file to continue");
+    return;
+  }
   Serial.print("Thing name: ");
   Serial.println(thing_name);
   
+  // read private key
+  bool hasThingKey = fsManager.ReadThingKey(thing_key, MAX_THING_KEY_LENGTH);
+  if(!hasThingKey) 
+  {
+    Serial.println("Thing key not configured - upload file to continue");
+    return;
+  }
+  Serial.print("Thing key: ");
+  Serial.println(thing_key);
+
+  mqttManager = createMqttManager(&mqttCallbacks, thing_name, thing_key);
+
   xTaskCreatePinnedToCore(
       MonitorLoop,   /* Function to implement the task */
       "MonitorTask", /* Name of the task */

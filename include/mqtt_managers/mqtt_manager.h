@@ -8,7 +8,6 @@ class MqttManagerCallbacks {
 
     public:
         virtual void NewAnimationReceived(String triggerName, const byte *payload, unsigned int length) = 0;
-
 };
 
 class MqttManager {
@@ -23,6 +22,6 @@ public:
     virtual bool loop() = 0;    
 };
 
-MqttManager *createMqttManager(MqttManagerCallbacks *callback);
+MqttManager *createMqttManager(MqttManagerCallbacks *callback, const char* device_id, const char * private_key);
 
 #endif // MQTT_MANAGER_H_INCLUDED

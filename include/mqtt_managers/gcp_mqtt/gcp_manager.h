@@ -20,16 +20,9 @@ const String OFF = "off";
 
 MqttManagerCallbacks *callback_global;
 
-// bool has_suffix(const std::string &str, const std::string &suffix)
-// {
-//     return str.size() >= suffix.size() &&
-//            str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
-// }
-
 void messageReceivedAdvanced(MQTTClient *client, char topic[], char bytes[], int length) {
 
-
-  Serial.print("messageReceivedAdvance9(): payload: ");
+  Serial.print("messageReceivedAdvance(): payload: ");
   Serial.print((const char *) bytes);
   Serial.print(" payload length: ");
   Serial.println(length);
@@ -42,22 +35,7 @@ void messageReceivedAdvanced(MQTTClient *client, char topic[], char bytes[], int
   if (callback_global != NULL) {
       callback_global->NewAnimationReceived("", (uint8_t *) bytes, length);
   }
-
 }
-// void messageReceived(String &topic, String &payload)
-// {
- 
-//   Serial.println("incoming: " + topic + " payload length: " + payload.length());
-  
-//   if (payload == NULL || payload.isEmpty()) {
-//     Serial.println("empty payload");
-//     return;
-//   }
-
-//   if (callback_global != NULL && (topic.endsWith("/commands"))) {
-//       callback_global->NewAnimationReceived("", (uint8_t *)payload.c_str(), payload.length());
-//   }
-// }
 
 CloudIoTCoreDevice *device;
 unsigned long iat = 0;
@@ -76,12 +54,13 @@ String getJwt()
 class GcpManager : public MqttManager
 {
 public:
-  GcpManager(MqttManagerCallbacks *callback) : callback(callback)
-  {
-    callback_global = callback;
+  GcpManager(MqttManagerCallbacks *callback, const char* device_id, const char * private_key) : callback(callback)
+  { 
+  callback_global = callback;
+
     device = new CloudIoTCoreDevice(
         project_id, location, registry_id, device_id,
-        private_key_str);
+        private_key);
     netClient = new WiFiClientSecure();
     client = new MQTTClient(512);
     client->setOptions(180 /* =keepAlive */, true /* =cleanSession */, 1000 /* =timeout */);
@@ -127,32 +106,9 @@ public:
 
 private:
   MqttManagerCallbacks *callback;
-  Client *netClient;
-
   CloudIoTCoreMqtt *gcp_mqtt;
   MQTTClient *client;
-
-  // void mqtt_callback(char *topic, uint8_t* payload, unsigned int length)
-  // {
-  //     Serial.print("Message arrived, ");
-  //     Serial.print(length);
-  //     Serial.print(" [");
-  //     Serial.print(topic);
-  //     Serial.print("] ");
-  //     for (int i = 0; i < length; i++)
-  //     {
-  //         Serial.print((char)payload[i]);
-  //     }
-  //     Serial.println();
-
-  //     // if (strncmp("animations/", topic, 11) == 0)
-  //     // {
-  //     //     Serial.println("topic animation?");
-  //     //     callback->NewAnimationReceived(String(topic + 11), payload, length);
-  //     // } else {
-  //     //     Serial.println("different topic?");
-  //     // }
-  // }
+  Client *netClient;
 
   bool publishTelemetry(String data)
   {

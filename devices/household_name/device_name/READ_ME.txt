@@ -12,6 +12,7 @@ openssl ec -in ec_private.pem -noout -text
 // Create a device and assign a public key to it.
 gcloud iot devices create DEVICE_NAME --region=us-central1 --registry=atest-registry --public-key path=ec_public.pem,type=es256
 
+; cd ../../../
 ; pio run --target uploadfs -e sapir
 ; pio run --target upload -e sapir
 

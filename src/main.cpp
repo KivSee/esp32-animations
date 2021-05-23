@@ -190,6 +190,8 @@ void MonitorLoop(void *parameter)
   ArduinoOTA.begin();
 
   IPAddress ntpServerIp;
+  Serial.print("Time sync server IP: ");
+  Serial.println(TIME_SERVER_IP);
   ntpServerIp.fromString(TIME_SERVER_IP);
   timesync.updateConfiguration(15, 1000 * 60 * 10, 250, 1000 * 60 * 2);
   timesync.setup(ntpServerIp, 12321);

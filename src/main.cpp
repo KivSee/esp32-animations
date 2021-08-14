@@ -10,7 +10,7 @@
 
 #include <TimeSync.hpp>
 #include <render_utils.h>
-// #include <protobuf_infra.h>
+#include <segment_store.h>
 #include <pb_decode.h>
 #include <animation.pb.h>
 #include <effect.h>
@@ -140,6 +140,7 @@ void ConnectToWifi()
 
 void MonitorLoop(void *parameter)
 {
+  initSegmentStore();
   ConnectToWifi();
 
   // Port defaults to 3232
@@ -220,6 +221,7 @@ void MonitorLoop(void *parameter)
       Serial.println(WiFi.status() == WL_CONNECTED);
       Serial.print("[0] mqtt client connected: ");
       Serial.println(mqttManager->connected());
+      httpGetConfig();
       lastReportTime = currTime;
     }
     mqttManager->loop();

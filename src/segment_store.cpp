@@ -44,9 +44,8 @@ void initSegmentStore()
     if (decodeSuccess)
     {
         Serial.println("SUCCESS, segment store initialized");
-        Serial.println(segments_map->guid);
-        Serial.println(segments_map->number_of_pixels);
-        Serial.println(segments_map->segments.size());
+        Serial.print("guid: "); Serial.println(segments_map->guid);
+        Serial.print("number of pixels: "); Serial.println(segments_map->number_of_pixels);
     }
     else
     {

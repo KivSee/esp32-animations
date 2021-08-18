@@ -28,6 +28,7 @@ public:
         {
             Serial.println("connected to message broker");
             client.subscribe((String("animations/") + String(thing_name) + String("/#")).c_str(), 1);
+            client.subscribe((String("obj/") + String(thing_name) + String("/guid")).c_str(), 1);
         }
         else
         {
@@ -73,6 +74,8 @@ private:
         {
             Serial.println("topic animation?");
             callback->NewAnimationReceived(String(topic + 11), payload, length);
+        } else if(strncmp("obj/", topic, 4) == 0) {
+            callback->NewConfigGuidReceived(payload, length);
         } else {
             Serial.println("different topic?");
         }

@@ -39,7 +39,6 @@ kivsee_render::HSV leds_hsv[NUM_LEDS];
 std::vector<kivsee_render::HSV *> segment(NUM_LEDS);
 RenderUtils renderUtils(leds_hsv, NUM_LEDS);
 
-
 TaskHandle_t Task1;
 
 void PrintCorePrefix()
@@ -54,13 +53,12 @@ void HandleTimedAnimationMsg(const byte *payload, unsigned int length)
 
   Serial.print("HandleTimedAnimationMsg(): payload: ");
   for (int i = 0; i < length; i++)
-  {        
-      Serial.print(payload[i], HEX);
+  {
+    Serial.print(payload[i], HEX);
   }
   Serial.println("");
   Serial.print("length: ");
   Serial.println(length);
-  
 
   pb_istream_t in_stream = pb_istream_from_buffer(payload, length);
 
@@ -76,10 +74,13 @@ void HandleTimedAnimationMsg(const byte *payload, unsigned int length)
     Serial.println("failed to handle new animation msg");
     return;
   }
-  if(timed_animation.start_time_ms_since_epoch) {
+  if (timed_animation.start_time_ms_since_epoch)
+  {
     new_timed_animation.start_time_esp_millis = 0;
     new_timed_animation.start_time_ms_since_epoch = timed_animation.start_time_ms_since_epoch;
-  } else {
+  }
+  else
+  {
     new_timed_animation.start_time_esp_millis = millis();
     new_timed_animation.start_time_ms_since_epoch = 0;
   }
@@ -97,19 +98,23 @@ void HandleTimedAnimationMsg(const byte *payload, unsigned int length)
   xQueueSend(runtime_animation_queue, &new_timed_animation, portMAX_DELAY);
 }
 
+class MqttCallbacks : public MqttManagerCallbacks
+{
 
-class MqttCallbacks : public MqttManagerCallbacks {
+public:
+  void NewAnimationReceived(String triggerName, const byte *payload, unsigned int length)
+  {
+    HandleTimedAnimationMsg(payload, length);
+  }
 
-  public: 
-    void NewAnimationReceived(String triggerName, const byte *payload, unsigned int length) {
-      HandleTimedAnimationMsg(payload, length);
-    }
-
+  void NewConfigGuidReceived(const byte *payload, unsigned int length)
+  {
+    handleSegmentsGuidMessage(payload, length);
+  }
 };
 
 MqttCallbacks mqttCallbacks;
 MqttManager *mqttManager = createMqttManager(&mqttCallbacks);
-
 
 void ConnectToWifi()
 {
@@ -205,7 +210,8 @@ void MonitorLoop(void *parameter)
       Serial.println("TIME CHANGED. new synced clock is availible to the esp");
     }
 
-    if(isTimeChanged || isFirstClockUpdate) {
+    if (isTimeChanged || isFirstClockUpdate)
+    {
       int64_t espStartTime = timesync.getEspStartTimeMs();
       xQueueSend(epoch_time_update_queue, &espStartTime, portMAX_DELAY);
     }
@@ -221,7 +227,6 @@ void MonitorLoop(void *parameter)
       Serial.println(WiFi.status() == WL_CONNECTED);
       Serial.print("[0] mqtt client connected: ");
       Serial.println(mqttManager->connected());
-      httpGetConfig();
       lastReportTime = currTime;
     }
     mqttManager->loop();
@@ -252,7 +257,7 @@ void setup()
 
   Serial.print("Thing name: ");
   Serial.println(thing_name);
-  
+
   xTaskCreatePinnedToCore(
       MonitorLoop,   /* Function to implement the task */
       "MonitorTask", /* Name of the task */
@@ -276,6 +281,6 @@ void loop()
   }
 
   renderer->loop(current_millis);
-  
+
   vTaskDelay(5);
 }

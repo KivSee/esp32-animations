@@ -2,6 +2,7 @@
 #include "segment_store.h"
 #include <SPIFFS.h>
 #include <HTTPClient.h>
+#include <ArduinoJson.h>
 #include "protobuf_infra.h"
 #include "segments/segments_map.h"
 #include "hsv.h"
@@ -50,6 +51,24 @@ void initSegmentStore(kivsee_render::HSV *leds)
         Serial.println(pbInputStream.errmsg);
     }
     file.close();
+}
+
+void handleSegmentsGuidMessage(const byte *payload, unsigned int length) {
+    StaticJsonDocument<200> doc;
+    DeserializationError error = deserializeJson(doc, payload, length);
+
+    if (error)
+    {
+      Serial.print(F("deserializeJson() failed: "));
+      Serial.println(error.f_str());
+      return;
+    }
+
+    uint32_t currentGuid = doc["guid"].as<uint32_t>();
+    if(currentGuid != segments_map->guid) {
+        Serial.println("got indication that config changed by guid");
+        httpGetConfig();   
+    }
 }
 
 void httpGetConfig()

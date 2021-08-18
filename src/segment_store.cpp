@@ -16,9 +16,8 @@ const char *objectFileName = "/objects-config";
 
 // data structures to use during segments map construction
 kivsee_render::segments::SegmentsMap *segments_map = nullptr;
-kivsee_render::HSV leds[50];
 
-void initSegmentStore()
+void initSegmentStore(kivsee_render::HSV *leds)
 {
     if (!SPIFFS.begin(true)) {
         Serial.println("An Error has occurred while mounting SPIFFS");
@@ -30,8 +29,6 @@ void initSegmentStore()
         Serial.println("Failed to open objects config file for reading");
         return;
     }
-
-    Serial.println(file.size());
 
     pb_istream_t pbInputStream = FileToPbStream(file);
     ::kivsee_render::segments::SegmentsMapDecodeArgs segments_map_decode_args;
@@ -85,7 +82,6 @@ void httpGetConfig()
         return;
     }
     String payload = http.getString();
-    Serial.println(payload.length());
 
     File file = SPIFFS.open(objectFileName, FILE_WRITE);
     if (!file) {

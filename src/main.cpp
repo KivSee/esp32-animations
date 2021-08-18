@@ -140,7 +140,7 @@ void ConnectToWifi()
 
 void MonitorLoop(void *parameter)
 {
-  initSegmentStore();
+  initSegmentStore(leds_hsv);
   ConnectToWifi();
 
   // Port defaults to 3232

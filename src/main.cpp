@@ -136,6 +136,7 @@ void ConnectToWifi()
       if (WiFi.status() == WL_CONNECTED)
       {
         Serial.println("connected to wifi");
+        httpGetConfig();
         return;
       }
     }

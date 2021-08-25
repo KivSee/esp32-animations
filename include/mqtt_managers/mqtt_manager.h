@@ -8,6 +8,7 @@ class MqttManagerCallbacks {
 
     public:
         virtual void NewAnimationReceived(String triggerName, const byte *payload, unsigned int length) = 0;
+        virtual void NewConfigGuidReceived(const byte *payload, unsigned int length) = 0;
 
 };
 

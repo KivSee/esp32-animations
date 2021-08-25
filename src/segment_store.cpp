@@ -9,9 +9,9 @@
 #include "segments.pb.h"
 #include "secrets.h"
 
-#ifndef HTTP_SERVER_PORT
-#define HTTP_SERVER_PORT 8000
-#endif //HTTP_SERVER_PORT
+#ifndef LED_OBJECT_SERVICE_PORT
+#define LED_OBJECT_SERVICE_PORT 80
+#endif //LED_OBJECT_SERVICE_PORT
 
 const char *objectFileName = "/objects-config";
 
@@ -74,9 +74,9 @@ void handleSegmentsGuidMessage(const byte *payload, unsigned int length) {
 void httpGetConfig()
 {
     String httpServerAddr = "http://"; 
-    httpServerAddr += HTTP_SERVER_IP; //HTTP_SERVER_IP defined in platformio.ini 
+    httpServerAddr += LED_OBJECT_SERVICE_IP; //LED_OBJECT_SERVICE_IP defined in platformio.ini 
     httpServerAddr += ":";
-    httpServerAddr += HTTP_SERVER_PORT;
+    httpServerAddr += LED_OBJECT_SERVICE_PORT;
     httpServerAddr += "/led-object/"; 
     httpServerAddr += THING_NAME; // THING_NAME defined in secrets.h
     HTTPClient http;

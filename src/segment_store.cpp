@@ -4,7 +4,6 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include "protobuf_infra.h"
-#include "segments/segments_map.h"
 #include "hsv.h"
 #include "segments.pb.h"
 #include "secrets.h"
@@ -18,6 +17,18 @@ const char *objectFileName = "/objects-config";
 // data structures to use during segments map construction
 kivsee_render::segments::SegmentsMap *segments_map = nullptr;
 
+kivsee_render::segments::SegmentsMap *initDefaultSegmentStore(kivsee_render::HSV *leds)
+{
+    kivsee_render::segments::SegmentsMap *segmentsStore = new kivsee_render::segments::SegmentsMap();
+    kivsee_render::segments::Segment segment;
+    strncpy(segment.first, "all", 4);
+    for(int i=0; i<NUM_LEDS; i++) {
+        segment.second.push_back(&leds[i]);
+    }
+    segmentsStore->segments.push_back(segment);
+    return segmentsStore;
+}
+
 void initSegmentStore(kivsee_render::HSV *leds)
 {
     if (!SPIFFS.begin(true))
@@ -25,9 +36,10 @@ void initSegmentStore(kivsee_render::HSV *leds)
         Serial.println("An Error has occurred while mounting SPIFFS");
         return;
     }
-    File file = SPIFFS.open(objectFileName);
-    if (!file)
+    File file = SPIFFS.open(objectFileName, "r");
+    if (!file || file.available() == 0)
     {
+        segments_map = initDefaultSegmentStore(leds);
         Serial.println("Failed to open objects config file for reading");
         return;
     }
@@ -52,6 +64,7 @@ void initSegmentStore(kivsee_render::HSV *leds)
     {
         Serial.println("Failed to initialize segment store");
         Serial.println(pbInputStream.errmsg);
+        segments_map = initDefaultSegmentStore(leds);
     }
     file.close();
 }
@@ -107,6 +120,12 @@ void httpGetConfig()
         http.end();
         return;
     }
+    if (httpResponseCode >= 400)
+    {
+        Serial.println("failed to GET led object config from service");
+        http.end();
+        return;
+    }
 
     File file = SPIFFS.open(objectFileName, FILE_WRITE);
     if (!file)
@@ -130,4 +149,8 @@ void httpGetConfig()
     http.end();
     Serial.println("Configuration updated in FS, restarting!");
     ESP.restart();
+}
+
+kivsee_render::segments::SegmentsMap *getSegmentsMap() {
+    return segments_map;
 }

@@ -31,11 +31,6 @@ kivsee_render::segments::SegmentsMap *initDefaultSegmentStore(kivsee_render::HSV
 
 void initSegmentStore(kivsee_render::HSV *leds)
 {
-    if (!SPIFFS.begin(true))
-    {
-        Serial.println("An Error has occurred while mounting SPIFFS");
-        return;
-    }
     File file = SPIFFS.open(objectFileName, "r");
     if (!file || file.available() == 0)
     {

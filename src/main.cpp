@@ -7,10 +7,12 @@
 #include <ESPmDNS.h>
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
+#include <SPIFFS.h>
 
 #include <TimeSync.hpp>
 #include <render_utils.h>
 #include <segment_store.h>
+#include <trigger.h>
 #include <pb_decode.h>
 #include <animation.pb.h>
 #include <effect.h>
@@ -67,8 +69,7 @@ void HandleTimedAnimationMsg(const byte *payload, unsigned int length)
 
   timed_animation.animation.funcs.decode = &kivsee_render::DecodeAnimationFromPbStream;
   kivsee_render::DecodeAnimationArgs args = {
-    getSegmentsMap()
-  };
+      getSegmentsMap()};
   timed_animation.animation.arg = &args;
 
   bool success = pb_decode(&in_stream, TimedAnimationProto_fields, &timed_animation);
@@ -109,6 +110,16 @@ public:
   void NewConfigGuidReceived(const byte *payload, unsigned int length)
   {
     handleSegmentsGuidMessage(payload, length);
+  }
+
+  void TriggerInvoked(const byte *payload, unsigned int length)
+  {
+    esp32animations::RuntimeAnimation new_timed_animation;
+    bool success = handleTriggerInvokedMessage(payload, length, &new_timed_animation);
+    if (success)
+    {
+      xQueueSend(runtime_animation_queue, &new_timed_animation, portMAX_DELAY);
+    }
   }
 };
 
@@ -246,6 +257,13 @@ void MonitorLoop(void *parameter)
 void setup()
 {
   Serial.begin(115200);
+
+  if (!SPIFFS.begin(true))
+  {
+    Serial.println("An Error has occurred while mounting SPIFFS");
+    return;
+  }
+
   disableCore0WDT();
 
   runtime_animation_queue = xQueueCreate(5, sizeof(esp32animations::RuntimeAnimation));

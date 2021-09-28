@@ -31,11 +31,6 @@ kivsee_render::segments::SegmentsMap *initDefaultSegmentStore(kivsee_render::HSV
 
 void initSegmentStore(kivsee_render::HSV *leds)
 {
-    if (!SPIFFS.begin(true))
-    {
-        Serial.println("An Error has occurred while mounting SPIFFS");
-        return;
-    }
     File file = SPIFFS.open(objectFileName, "r");
     if (!file || file.available() == 0)
     {
@@ -91,15 +86,22 @@ void handleSegmentsGuidMessage(const byte *payload, unsigned int length)
 
 void httpGetConfig()
 {
-    String httpServerAddr = "http://";
-    httpServerAddr += LED_OBJECT_SERVICE_IP; //LED_OBJECT_SERVICE_IP defined in platformio.ini
-    httpServerAddr += ":";
-    httpServerAddr += LED_OBJECT_SERVICE_PORT;
-    httpServerAddr += "/led-object/";
-    httpServerAddr += THING_NAME; // THING_NAME defined in secrets.h
+    char uri[32];
+    int uriLen = snprintf(uri, sizeof(uri), "/led-object/%s", THING_NAME);
+    if (uriLen < 0 || uriLen >= sizeof(uri))
+    {
+        Serial.println("cannot format led object uri");
+        return;
+    }
+
+    uint16_t port = (uint16_t)strtoul(LED_OBJECT_SERVICE_PORT, nullptr, 10);
+    if(port == 0) {
+        Serial.println("could not parse sequence service port");
+        return;
+    }
 
     HTTPClient http;
-    http.begin(httpServerAddr.c_str());
+    http.begin(LED_OBJECT_SERVICE_IP, port, uri);
     http.addHeader("Accept", "application/x-protobuf");
     if (segments_map)
     {

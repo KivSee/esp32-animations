@@ -44,3 +44,5 @@
 */mqtt_managers/gcp_mqtt/ec_public.pem
 
 py-seq-mock
+devices
+data

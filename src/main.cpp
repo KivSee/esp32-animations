@@ -19,6 +19,7 @@
 #include <animation.h>
 #include <renderer.h>
 #include <mqtt_managers/mqtt_manager.h>
+#include <fs_manager.h>
 
 #ifndef NUM_LEDS
 #warning NUM_LEDS not definded. using default value of 300
@@ -35,6 +36,7 @@ QueueHandle_t runtime_animation_queue;
 QueueHandle_t epoch_time_update_queue;
 QueueHandle_t runtime_animation_delete_queue;
 esp32animations::Renderer *renderer = nullptr;
+FsManager fsManager;
 
 // core 1 accessed
 kivsee_render::HSV leds_hsv[NUM_LEDS];
@@ -124,7 +126,7 @@ public:
 };
 
 MqttCallbacks mqttCallbacks;
-MqttManager *mqttManager = createMqttManager(&mqttCallbacks);
+MqttManager *mqttManager;
 
 void ConnectToWifi()
 {
@@ -202,6 +204,8 @@ void MonitorLoop(void *parameter)
   ArduinoOTA.begin();
 
   IPAddress ntpServerIp;
+  Serial.print("Time sync server IP: ");
+  Serial.println(TIME_SERVER_IP);
   ntpServerIp.fromString(TIME_SERVER_IP);
   timesync.updateConfiguration(15, 1000 * 60 * 10, 250, 1000 * 60 * 2);
   timesync.setup(ntpServerIp, 12321);
@@ -271,10 +275,10 @@ void setup()
   runtime_animation_delete_queue = xQueueCreate(5, sizeof(esp32animations::RuntimeAnimation));
   renderer = new esp32animations::Renderer(runtime_animation_queue, epoch_time_update_queue, runtime_animation_delete_queue, &renderUtils);
 
+  fsManager.setup();
   renderUtils.Setup();
 
-  Serial.print("Thing name: ");
-  Serial.println(thing_name);
+  mqttManager = createMqttManager(&mqttCallbacks, &fsManager);
 
   xTaskCreatePinnedToCore(
       MonitorLoop,   /* Function to implement the task */

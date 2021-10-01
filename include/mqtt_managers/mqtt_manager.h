@@ -1,6 +1,8 @@
 #ifndef MQTT_MANAGER_H_INCLUDED
 #define MQTT_MANAGER_H_INCLUDED
 
+#include <fs_manager.h>
+
 #define MQTT_BROKER_GOOGLE 1
 //#define MQTT_BROKER_MOSQITTO 1
 
@@ -10,7 +12,6 @@ class MqttManagerCallbacks {
         virtual void NewAnimationReceived(String triggerName, const byte *payload, unsigned int length) = 0;
         virtual void NewConfigGuidReceived(const byte *payload, unsigned int length) = 0;
         virtual void TriggerInvoked(const byte *payload, unsigned int length) = 0;
-
 };
 
 class MqttManager {
@@ -25,6 +26,6 @@ public:
     virtual bool loop() = 0;    
 };
 
-MqttManager *createMqttManager(MqttManagerCallbacks *callback);
+MqttManager *createMqttManager(MqttManagerCallbacks *callback, FsManager *fsManager);
 
 #endif // MQTT_MANAGER_H_INCLUDED

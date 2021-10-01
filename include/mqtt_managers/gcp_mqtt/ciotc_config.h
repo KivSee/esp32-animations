@@ -1,30 +1,9 @@
-// **********************************************************************
-// **********************************************************************
-// ***              Rename file to ciotc_config.h
-// ***              Update WiFi ssid & passowrd below
-// ***              Create a device, generate keys
-// ***              and register the device with the keys.
-// ***
-// ***              Generate an Eliptic Curve (EC)
-// ***              private / public key pair:
-// ***
-// openssl ecparam -genkey -name prime256v1 -noout -out ec_private.pem
-// openssl ec -in ec_private.pem -pubout -out ec_public.pem
-//      https://github.com/GoogleCloudPlatform/google-cloud-iot-arduino
-// ***
-// *** gcloud iot devices create NEW_DEVICE_NAME --region=REGION \
-// ***              --registry=REGISTRY \
-// ***              --public-key path=ec_public.pem,type=es256
-// ***
-// ***
-// **********************************************************************
-// **********************************************************************
+// gcloud iot devices create coral --region=us-central1 --registry=atest-registry --public-key path=ec_public.pem,type=es256
 
 // Cloud iot details.
 const char *project_id = "homelightcontrol";
 const char *location = "us-central1";
 const char *registry_id = "atest-registry";
-const char *device_id = "DEVICE_NAME";
 
 // Configuration for NTP
 const char *ntp_primary = "pool.ntp.org";
@@ -33,19 +12,6 @@ const char *ntp_secondary = "time.nist.gov";
 #ifndef LED_BUILTIN
 #define LED_BUILTIN 13
 #endif
-
-// To get the private key run (where private-key.pem is the ec private key
-// used to create the certificate uploaded to google cloud iot):
-// openssl ec -in ec_private.pem -noout -text
-// and copy priv: part.
-// The key length should be exactly the same as the key length bellow (32 pairs
-// of hex digits). If it's bigger and it starts with "00:" delete the "00:". If
-// it's smaller add "00:" to the start. If it's too big or too small something
-// is probably wrong with your key.
-const char *private_key_str =
-    "XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:"
-    "XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:"
-    "XX:XX";
 
 // Time (seconds) to expire token += 20 minutes for drift
 const int jwt_exp_secs = 3600; // Maximum 24H (3600*24)

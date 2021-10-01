@@ -27,10 +27,7 @@
 #endif // NUM_LEDS
 
 #define MAX_THING_NAME_LENGTH 16
-char thing_name[MAX_THING_NAME_LENGTH];
-
-#define MAX_THING_KEY_LENGTH 96
-char thing_key[MAX_THING_KEY_LENGTH];
+char thing_name[MAX_THING_NAME_LENGTH] = THING_NAME;
 
 const unsigned int WD_TIMEOUT_MS = 2000;
 TimeSync::TimeSyncClient timesync;

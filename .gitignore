@@ -39,8 +39,12 @@
 
 .vscode*
 */secrets.h
-data/thing_info
+
 devices/amir
 devices/bigler
 devices/sapir
 devices/shema
+
+py-seq-mock
+data
+

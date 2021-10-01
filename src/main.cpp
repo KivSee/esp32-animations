@@ -7,10 +7,12 @@
 #include <ESPmDNS.h>
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
+#include <SPIFFS.h>
 
 #include <TimeSync.hpp>
 #include <render_utils.h>
-// #include <protobuf_infra.h>
+#include <segment_store.h>
+#include <trigger.h>
 #include <pb_decode.h>
 #include <animation.pb.h>
 #include <effect.h>
@@ -44,7 +46,6 @@ kivsee_render::HSV leds_hsv[NUM_LEDS];
 std::vector<kivsee_render::HSV *> segment(NUM_LEDS);
 RenderUtils renderUtils(leds_hsv, NUM_LEDS);
 
-
 TaskHandle_t Task1;
 
 void PrintCorePrefix()
@@ -59,13 +60,12 @@ void HandleTimedAnimationMsg(const byte *payload, unsigned int length)
 
   Serial.print("HandleTimedAnimationMsg(): payload: ");
   for (int i = 0; i < length; i++)
-  {        
-      Serial.print(payload[i], HEX);
+  {
+    Serial.print(payload[i], HEX);
   }
   Serial.println("");
   Serial.print("length: ");
   Serial.println(length);
-  
 
   pb_istream_t in_stream = pb_istream_from_buffer(payload, length);
 
@@ -73,48 +73,63 @@ void HandleTimedAnimationMsg(const byte *payload, unsigned int length)
   TimedAnimationProto timed_animation = TimedAnimationProto_init_zero;
 
   timed_animation.animation.funcs.decode = &kivsee_render::DecodeAnimationFromPbStream;
-  timed_animation.animation.arg = &new_timed_animation.animation;
+  kivsee_render::DecodeAnimationArgs args = {
+      getSegmentsMap()};
+  timed_animation.animation.arg = &args;
 
   bool success = pb_decode(&in_stream, TimedAnimationProto_fields, &timed_animation);
   if (!success)
   {
-    Serial.println("failed to handle new animation msg");
+    Serial.print("failed to handle new animation msg. error: ");
+    Serial.println(in_stream.errmsg);
     return;
   }
-  if(timed_animation.start_time_ms_since_epoch) {
+
+  Serial.println("succesfully initialized new animation");
+
+  new_timed_animation.animation = (::kivsee_render::Animation *)timed_animation.animation.arg;
+
+  if (timed_animation.start_time_ms_since_epoch)
+  {
     new_timed_animation.start_time_esp_millis = 0;
     new_timed_animation.start_time_ms_since_epoch = timed_animation.start_time_ms_since_epoch;
-  } else {
+  }
+  else
+  {
     new_timed_animation.start_time_esp_millis = millis();
     new_timed_animation.start_time_ms_since_epoch = 0;
-  }
-
-  for (int i = 0; i < NUM_LEDS; i++)
-  {
-    segment[i] = &leds_hsv[i];
-  }
-  for (::kivsee_render::Animation::EffectsVec::iterator it = new_timed_animation.animation->effects.begin(); it != new_timed_animation.animation->effects.end(); ++it)
-  {
-    ::kivsee_render::Effect *effect = *it;
-    effect->Init(&segment);
   }
 
   xQueueSend(runtime_animation_queue, &new_timed_animation, portMAX_DELAY);
 }
 
+class MqttCallbacks : public MqttManagerCallbacks
+{
 
-class MqttCallbacks : public MqttManagerCallbacks {
+public:
+  void NewAnimationReceived(String triggerName, const byte *payload, unsigned int length)
+  {
+    HandleTimedAnimationMsg(payload, length);
+  }
 
-  public: 
-    void NewAnimationReceived(String triggerName, const byte *payload, unsigned int length) {
-      HandleTimedAnimationMsg(payload, length);
+  void NewConfigGuidReceived(const byte *payload, unsigned int length)
+  {
+    handleSegmentsGuidMessage(payload, length);
+  }
+
+  void TriggerInvoked(const byte *payload, unsigned int length)
+  {
+    esp32animations::RuntimeAnimation new_timed_animation;
+    bool success = handleTriggerInvokedMessage(payload, length, &new_timed_animation);
+    if (success)
+    {
+      xQueueSend(runtime_animation_queue, &new_timed_animation, portMAX_DELAY);
     }
-
+  }
 };
 
 MqttCallbacks mqttCallbacks;
 MqttManager *mqttManager;
-
 
 void ConnectToWifi()
 {
@@ -136,6 +151,7 @@ void ConnectToWifi()
       if (WiFi.status() == WL_CONNECTED)
       {
         Serial.println("connected to wifi");
+        httpGetConfig();
         return;
       }
     }
@@ -145,6 +161,7 @@ void ConnectToWifi()
 
 void MonitorLoop(void *parameter)
 {
+  initSegmentStore(leds_hsv);
   ConnectToWifi();
 
   // Port defaults to 3232
@@ -211,7 +228,8 @@ void MonitorLoop(void *parameter)
       Serial.println("TIME CHANGED. new synced clock is availible to the esp");
     }
 
-    if(isTimeChanged || isFirstClockUpdate) {
+    if (isTimeChanged || isFirstClockUpdate)
+    {
       int64_t espStartTime = timesync.getEspStartTimeMs();
       xQueueSend(epoch_time_update_queue, &espStartTime, portMAX_DELAY);
     }
@@ -246,6 +264,13 @@ void MonitorLoop(void *parameter)
 void setup()
 {
   Serial.begin(115200);
+
+  if (!SPIFFS.begin(true))
+  {
+    Serial.println("An Error has occurred while mounting SPIFFS");
+    return;
+  }
+
   disableCore0WDT();
 
   runtime_animation_queue = xQueueCreate(5, sizeof(esp32animations::RuntimeAnimation));
@@ -256,26 +281,7 @@ void setup()
   fsManager.setup();
   renderUtils.Setup();
 
- bool hasThingName = fsManager.ReadThingName(thing_name, MAX_THING_NAME_LENGTH);
-  if(!hasThingName) 
-  {
-    Serial.println("Thing name not configured - upload file to continue");
-    return;
-  }
-  Serial.print("Thing name: ");
-  Serial.println(thing_name);
-  
-  // read private key
-  bool hasThingKey = fsManager.ReadThingKey(thing_key, MAX_THING_KEY_LENGTH);
-  if(!hasThingKey) 
-  {
-    Serial.println("Thing key not configured - upload file to continue");
-    return;
-  }
-  Serial.print("Thing key: ");
-  Serial.println(thing_key);
-
-  mqttManager = createMqttManager(&mqttCallbacks, thing_name, thing_key);
+  mqttManager = createMqttManager(&mqttCallbacks, &fsManager);
 
   xTaskCreatePinnedToCore(
       MonitorLoop,   /* Function to implement the task */
@@ -300,6 +306,6 @@ void loop()
   }
 
   renderer->loop(current_millis);
-  
+
   vTaskDelay(5);
 }

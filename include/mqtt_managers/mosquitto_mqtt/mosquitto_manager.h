@@ -10,6 +10,8 @@
 #define MQTT_BROKER_PORT 1883
 #endif //MQTT_BROKER_PORT
 
+const char *triggerTopic = "trigger";
+
 class MosquittoManager : public MqttManager
 {
 public:
@@ -28,6 +30,8 @@ public:
         {
             Serial.println("connected to message broker");
             client.subscribe((String("animations/") + String(thing_name) + String("/#")).c_str(), 1);
+            client.subscribe((String("obj/") + String(thing_name) + String("/guid")).c_str(), 1);
+            client.subscribe(triggerTopic, 1);
         }
         else
         {
@@ -73,6 +77,10 @@ private:
         {
             Serial.println("topic animation?");
             callback->NewAnimationReceived(String(topic + 11), payload, length);
+        } else if(strncmp("obj/", topic, 4) == 0) {
+            callback->NewConfigGuidReceived(payload, length);
+        } else if(strncmp(triggerTopic, topic, sizeof(triggerTopic) + 1) == 0) {
+            callback->TriggerInvoked(payload, length);
         } else {
             Serial.println("different topic?");
         }

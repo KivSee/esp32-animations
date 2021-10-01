@@ -1,0 +1,158 @@
+
+#include "segment_store.h"
+#include <SPIFFS.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+#include "protobuf_infra.h"
+#include "hsv.h"
+#include "segments.pb.h"
+#include "secrets.h"
+
+#ifndef LED_OBJECT_SERVICE_PORT
+#define LED_OBJECT_SERVICE_PORT 80
+#endif //LED_OBJECT_SERVICE_PORT
+
+const char *objectFileName = "/objects-config";
+
+// data structures to use during segments map construction
+kivsee_render::segments::SegmentsMap *segments_map = nullptr;
+
+kivsee_render::segments::SegmentsMap *initDefaultSegmentStore(kivsee_render::HSV *leds)
+{
+    kivsee_render::segments::SegmentsMap *segmentsStore = new kivsee_render::segments::SegmentsMap();
+    kivsee_render::segments::Segment segment;
+    strncpy(segment.first, "all", 4);
+    for(int i=0; i<NUM_LEDS; i++) {
+        segment.second.push_back(&leds[i]);
+    }
+    segmentsStore->segments.push_back(segment);
+    return segmentsStore;
+}
+
+void initSegmentStore(kivsee_render::HSV *leds)
+{
+    File file = SPIFFS.open(objectFileName, "r");
+    if (!file || file.available() == 0)
+    {
+        segments_map = initDefaultSegmentStore(leds);
+        Serial.println("Failed to open objects config file for reading");
+        return;
+    }
+
+    pb_istream_t pbInputStream = FileToPbStream(file);
+    ::kivsee_render::segments::SegmentsMapDecodeArgs segments_map_decode_args;
+    segments_map_decode_args.out_segments_map = &segments_map;
+    segments_map_decode_args.leds_array = leds;
+    void *arg = &segments_map_decode_args;
+
+    // decode
+    bool decodeSuccess = ::kivsee_render::segments::DecodeSegmentsMapFromPbStream(&pbInputStream, nullptr, &arg);
+    if (decodeSuccess)
+    {
+        Serial.println("SUCCESS, segment store initialized");
+        Serial.print("guid: ");
+        Serial.println(segments_map->guid);
+        Serial.print("number of pixels: ");
+        Serial.println(segments_map->number_of_pixels);
+    }
+    else
+    {
+        Serial.println("Failed to initialize segment store");
+        Serial.println(pbInputStream.errmsg);
+        segments_map = initDefaultSegmentStore(leds);
+    }
+    file.close();
+}
+
+void handleSegmentsGuidMessage(const byte *payload, unsigned int length)
+{
+    StaticJsonDocument<200> doc;
+    DeserializationError error = deserializeJson(doc, payload, length);
+
+    if (error)
+    {
+        Serial.print(F("deserializeJson() failed: "));
+        Serial.println(error.f_str());
+        return;
+    }
+
+    uint32_t currentGuid = doc["guid"].as<uint32_t>();
+    if (currentGuid != segments_map->guid)
+    {
+        Serial.println("got indication that config changed by guid");
+        httpGetConfig();
+    }
+}
+
+void httpGetConfig()
+{
+    char uri[32];
+    int uriLen = snprintf(uri, sizeof(uri), "/led-object/%s", THING_NAME);
+    if (uriLen < 0 || uriLen >= sizeof(uri))
+    {
+        Serial.println("cannot format led object uri");
+        return;
+    }
+
+    uint16_t port = (uint16_t)strtoul(LED_OBJECT_SERVICE_PORT, nullptr, 10);
+    if(port == 0) {
+        Serial.println("could not parse sequence service port");
+        return;
+    }
+
+    HTTPClient http;
+    http.begin(LED_OBJECT_SERVICE_IP, port, uri);
+    http.addHeader("Accept", "application/x-protobuf");
+    if (segments_map)
+    {
+        http.addHeader("If-None-Match", String(segments_map->guid));
+    }
+    
+    int httpResponseCode = http.GET();
+    if (httpResponseCode <= 0)
+    {
+        Serial.print("Error code: ");
+        Serial.println(httpResponseCode);
+        http.end();
+        return;
+    }
+    if (httpResponseCode == 304)
+    {
+        Serial.println("Object config is current, no update needed");
+        http.end();
+        return;
+    }
+    if (httpResponseCode >= 400)
+    {
+        Serial.println("failed to GET led object config from service");
+        http.end();
+        return;
+    }
+
+    File file = SPIFFS.open(objectFileName, FILE_WRITE);
+    if (!file)
+    {
+        Serial.println("There was an error opening the file for writing");
+        http.end();
+        return;
+    }
+
+    int bytesWritten = http.writeToStream(&file);
+    if (bytesWritten < 0 || bytesWritten != http.getSize())
+    {
+        Serial.println("did not write all bytes to file");
+        file.close();
+        http.end();
+        return;
+    }
+
+    // Free resources
+    file.close();
+    http.end();
+    Serial.println("Configuration updated in FS, restarting!");
+    ESP.restart();
+}
+
+kivsee_render::segments::SegmentsMap *getSegmentsMap() {
+    return segments_map;
+}

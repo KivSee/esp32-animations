@@ -18,6 +18,11 @@ bool handleTriggerInvokedMessage(const byte *payload, unsigned int length, esp32
     }
 
     const char *triggerName = doc["trigger_name"].as<const char *>();
+    if(!triggerName) {
+        Serial.println("no active trigger");
+        return false;
+    }
+
     uint32_t guid = doc["guid"].as<uint32_t>();
     uint64_t startTimeMsSinceEpoch = doc["start_time_ms_since_epoch"].as<uint64_t>();
 

@@ -116,12 +116,9 @@ public:
 
   void TriggerInvoked(const byte *payload, unsigned int length)
   {
-    esp32animations::RuntimeAnimation new_timed_animation;
+    esp32animations::RuntimeAnimation new_timed_animation = {};
     bool success = handleTriggerInvokedMessage(payload, length, &new_timed_animation);
-    if (success)
-    {
-      xQueueSend(runtime_animation_queue, &new_timed_animation, portMAX_DELAY);
-    }
+    xQueueSend(runtime_animation_queue, &new_timed_animation, portMAX_DELAY);
   }
 };
 

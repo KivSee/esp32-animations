@@ -1,8 +1,8 @@
 # esp32-animations
 An ESP32 project to run LED animations on an object
 
-## Upload thing_name to filesystem
-A `data` folder with a file named `thing_name` containing the name for the controller, up to 16 characters, must be uploaded before the controller can connect to WIFI and LED services. \
+## Upload thing_info to filesystem
+A `data` folder with a file named `thing_info` containing the thing_name for the controller, up to 16 characters, must be uploaded before the controller can connect to WIFI and LED services. \
 The platformio command for the filesystem upload \
 `pio run -t uploadfs`
 

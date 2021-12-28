@@ -256,7 +256,7 @@ void setup()
 
   uint16_t number_of_leds = readNumberOfPixels();
   if(number_of_leds == 0) {
-    return;
+    number_of_leds = 300;
   }
 
   runtime_animation_queue = xQueueCreate(5, sizeof(esp32animations::RuntimeAnimation));

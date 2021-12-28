@@ -21,7 +21,7 @@
 #include <fs_manager.h>
 
 #define MAX_THING_NAME_LENGTH 16
-char thing_name[MAX_THING_NAME_LENGTH] = THING_NAME;
+char thing_name[MAX_THING_NAME_LENGTH];
 
 const unsigned int WD_TIMEOUT_MS = 2000;
 TimeSync::TimeSyncClient timesync;
@@ -98,15 +98,15 @@ public:
     HandleTimedAnimationMsg(payload, length);
   }
 
-  void NewConfigGuidReceived(const byte *payload, unsigned int length)
+  void NewConfigGuidReceived(const byte *payload, unsigned int length, const char *thing_name)
   {
-    handleSegmentsGuidMessage(payload, length);
+    handleSegmentsGuidMessage(payload, length, thing_name);
   }
 
   void TriggerInvoked(const byte *payload, unsigned int length)
   {
     esp32animations::RuntimeAnimation new_timed_animation = {};
-    bool success = handleTriggerInvokedMessage(payload, length, &new_timed_animation);
+    bool success = handleTriggerInvokedMessage(payload, length, &new_timed_animation, thing_name);
     xQueueSend(runtime_animation_queue, &new_timed_animation, portMAX_DELAY);
   }
 };
@@ -134,7 +134,7 @@ void ConnectToWifi()
       if (WiFi.status() == WL_CONNECTED)
       {
         Serial.println("connected to wifi");
-        httpGetConfig();
+        httpGetConfig(thing_name);
         return;
       }
     }
@@ -144,6 +144,15 @@ void ConnectToWifi()
 
 void MonitorLoop(void *parameter)
 {
+
+  bool hasThingName = fsManager.ReadThingName(thing_name, 16);
+  while (!hasThingName)
+  {
+      Serial.println("Thing name not configured - upload 'thing_info' file to continue");
+      delay(5000);
+  }
+  Serial.print("Thing name: "); Serial.println(thing_name);
+
   ConnectToWifi();
 
   // Port defaults to 3232

@@ -24,7 +24,7 @@ public:
             return;
 
         client.setServer(MQTT_BROKER_IP, MQTT_BROKER_PORT); // Broker IP is defined in platformio.ini
-        client.setCallback(std::bind(&MosquittoManager::mqtt_callback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+        client.setCallback(std::bind(&MosquittoManager::mqtt_callback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, thing_name));
         Serial.println("connecting to mqtt");
         if (client.connect(thing_name))
         {
@@ -60,7 +60,7 @@ private:
     PubSubClient client;
     MqttManagerCallbacks *callback;
 
-    void mqtt_callback(char *topic, uint8_t* payload, unsigned int length)
+    void mqtt_callback(char *topic, uint8_t* payload, unsigned int length, const char *thing_name)
     {
         Serial.print("Message arrived, ");
         Serial.print(length);
@@ -78,7 +78,7 @@ private:
             Serial.println("topic animation?");
             callback->NewAnimationReceived(String(topic + 11), payload, length);
         } else if(strncmp("obj/", topic, 4) == 0) {
-            callback->NewConfigGuidReceived(payload, length);
+            callback->NewConfigGuidReceived(payload, length, thing_name);
         } else if(strncmp(triggerTopic, topic, sizeof(triggerTopic) + 1) == 0) {
             callback->TriggerInvoked(payload, length);
         } else {

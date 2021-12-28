@@ -64,7 +64,7 @@ void initSegmentStore(kivsee_render::HSV *leds, uint16_t number_of_leds)
     file.close();
 }
 
-void handleSegmentsGuidMessage(const byte *payload, unsigned int length)
+void handleSegmentsGuidMessage(const byte *payload, unsigned int length, const char *thing_name)
 {
     StaticJsonDocument<200> doc;
     DeserializationError error = deserializeJson(doc, payload, length);
@@ -80,14 +80,14 @@ void handleSegmentsGuidMessage(const byte *payload, unsigned int length)
     if (currentGuid != segments_map->guid)
     {
         Serial.println("got indication that config changed by guid");
-        httpGetConfig();
+        httpGetConfig(thing_name);
     }
 }
 
-void httpGetConfig()
+void httpGetConfig(const char *thing_name)
 {
     char uri[32];
-    int uriLen = snprintf(uri, sizeof(uri), "/led-object/%s", THING_NAME);
+    int uriLen = snprintf(uri, sizeof(uri), "/led-object/%s", thing_name);
     if (uriLen < 0 || uriLen >= sizeof(uri))
     {
         Serial.println("cannot format led object uri");

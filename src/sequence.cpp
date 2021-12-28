@@ -41,13 +41,13 @@ bool writeGuidFile(const char *guidFileName, uint32_t guid)
     return true;
 }
 
-bool httpGetSequence(const char *triggerName, uint32_t guid, const char *guidFileName, const char *dataFileName)
+bool httpGetSequence(const char *triggerName, uint32_t guid, const char *guidFileName, const char *dataFileName, const char *thing_name)
 {
 
     deleteCurrentSequenceFiles(guidFileName, dataFileName);
 
     char uri[128];
-    int uriLen = snprintf(uri, sizeof(uri), "/triggers/%s/objects/%s/guid/%lu", triggerName, THING_NAME, guid);
+    int uriLen = snprintf(uri, sizeof(uri), "/triggers/%s/objects/%s/guid/%lu", triggerName, thing_name, guid);
     if (uriLen < 0 || uriLen >= sizeof(uri))
     {
         Serial.println("cannot format seq uri");
@@ -111,7 +111,7 @@ bool httpGetSequence(const char *triggerName, uint32_t guid, const char *guidFil
     return true;
 }
 
-::kivsee_render::Animation *loadSequence(const char *triggerName, uint32_t guid)
+::kivsee_render::Animation *loadSequence(const char *triggerName, uint32_t guid, const char *thing_name)
 {
 
     char guidFileName[MAX_FILE_NAME_LEN + 1];
@@ -133,7 +133,7 @@ bool httpGetSequence(const char *triggerName, uint32_t guid, const char *guidFil
     File guidFile = SPIFFS.open(guidFileName, "r");
     if (!guidFile || guidFile.available() == 0)
     {
-        if (!httpGetSequence(triggerName, guid, guidFileName, dataFileName))
+        if (!httpGetSequence(triggerName, guid, guidFileName, dataFileName, thing_name))
         {
             return nullptr;
         }
@@ -151,7 +151,7 @@ bool httpGetSequence(const char *triggerName, uint32_t guid, const char *guidFil
         if (storedGuid != guid)
         {
             Serial.println(F("Sequence new guid detected, fetching sequence from service"));
-            if (!httpGetSequence(triggerName, guid, guidFileName, dataFileName))
+            if (!httpGetSequence(triggerName, guid, guidFileName, dataFileName, thing_name))
             {
                 return nullptr;
             }

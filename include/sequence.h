@@ -5,6 +5,6 @@
 
 #include "animation.h"
 
-::kivsee_render::Animation *loadSequence(const char *triggerName, uint32_t guid);
+::kivsee_render::Animation *loadSequence(const char *triggerName, uint32_t guid, const char *thing_name);
 
 #endif // __SEQUENCE_H__

@@ -10,7 +10,6 @@
 #include <SPIFFS.h>
 
 #include <TimeSync.hpp>
-#include <render_utils.h>
 #include <segment_store.h>
 #include <trigger.h>
 #include <pb_decode.h>
@@ -20,11 +19,6 @@
 #include <renderer.h>
 #include <mqtt_managers/mqtt_manager.h>
 #include <fs_manager.h>
-
-#ifndef NUM_LEDS
-#warning NUM_LEDS not definded. using default value of 300
-#define NUM_LEDS 300
-#endif // NUM_LEDS
 
 #define MAX_THING_NAME_LENGTH 16
 char thing_name[MAX_THING_NAME_LENGTH];
@@ -37,11 +31,6 @@ QueueHandle_t epoch_time_update_queue;
 QueueHandle_t runtime_animation_delete_queue;
 esp32animations::Renderer *renderer = nullptr;
 FsManager fsManager;
-
-// core 1 accessed
-kivsee_render::HSV leds_hsv[NUM_LEDS];
-std::vector<kivsee_render::HSV *> segment(NUM_LEDS);
-RenderUtils renderUtils(leds_hsv, NUM_LEDS);
 
 TaskHandle_t Task1;
 
@@ -155,7 +144,6 @@ void ConnectToWifi()
 
 void MonitorLoop(void *parameter)
 {
-  initSegmentStore(leds_hsv);
 
   bool hasThingName = fsManager.ReadThingName(thing_name, 16);
   while (!hasThingName)
@@ -217,7 +205,6 @@ void MonitorLoop(void *parameter)
   timesync.setup(ntpServerIp, 12321);
 
   unsigned int lastReportTime = millis();
-  unsigned int lastMonitorTime = millis();
   for (;;)
   {
     bool isTimeChanged, isFirstClockUpdate;
@@ -276,13 +263,18 @@ void setup()
 
   disableCore0WDT();
 
+  uint16_t number_of_leds = readNumberOfPixels();
+  if(number_of_leds == 0) {
+    number_of_leds = 300;
+  }
+
   runtime_animation_queue = xQueueCreate(5, sizeof(esp32animations::RuntimeAnimation));
   epoch_time_update_queue = xQueueCreate(5, sizeof(int64_t));
   runtime_animation_delete_queue = xQueueCreate(5, sizeof(esp32animations::RuntimeAnimation));
-  renderer = new esp32animations::Renderer(runtime_animation_queue, epoch_time_update_queue, runtime_animation_delete_queue, &renderUtils);
+  renderer = new esp32animations::Renderer(runtime_animation_queue, epoch_time_update_queue, runtime_animation_delete_queue, number_of_leds);
+  initSegmentStore(renderer->hsv_painting_array(), number_of_leds);
 
   fsManager.setup();
-  renderUtils.Setup();
 
   mqttManager = createMqttManager(&mqttCallbacks, &fsManager);
 
@@ -308,7 +300,9 @@ void loop()
     lastPrint1Time = current_millis;
   }
 
-  renderer->loop(current_millis);
+  if(renderer) {
+    renderer->loop(current_millis);
+  }
 
   vTaskDelay(5);
 }

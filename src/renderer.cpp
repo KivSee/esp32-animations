@@ -3,9 +3,15 @@
 namespace esp32animations
 {
 
-    Renderer::Renderer(QueueHandle_t in_runtime_animation_queue, QueueHandle_t in_epoch_time_update_queue, QueueHandle_t out_runtime_animation_queue, RenderUtils *render_utils)
-        : in_runtime_animation_queue(in_runtime_animation_queue), in_epoch_time_update_queue(in_epoch_time_update_queue), out_runtime_animation_queue(out_runtime_animation_queue), render_utils(render_utils)
+    Renderer::Renderer(QueueHandle_t in_runtime_animation_queue, QueueHandle_t in_epoch_time_update_queue, QueueHandle_t out_runtime_animation_queue, uint16_t number_of_leds)
+        : in_runtime_animation_queue(in_runtime_animation_queue), 
+            in_epoch_time_update_queue(in_epoch_time_update_queue), 
+            out_runtime_animation_queue(out_runtime_animation_queue), 
+            m_number_of_leds(number_of_leds),
+            m_leds_hsv(new kivsee_render::HSV[number_of_leds]),
+            m_leds_rgb(number_of_leds, DATA_PIN) 
     {
+        m_leds_rgb.Begin();
     }
 
     void Renderer::loop(unsigned long current_millis)
@@ -13,7 +19,7 @@ namespace esp32animations
         readRuntimeAnimationFromQueue();
         readEpochTimeUpdateFromQueue();
 
-        render_utils->Clear();
+        clear();
         if (runtime_animation.animation != nullptr)
         {
             unsigned long current_animation_time = getAnimationTime(current_millis, runtime_animation);
@@ -22,7 +28,7 @@ namespace esp32animations
                 runtime_animation.animation->Render(current_animation_time);
             }
         }
-        render_utils->Show();
+        show();
     }
 
     void Renderer::readRuntimeAnimationFromQueue()
@@ -57,6 +63,28 @@ namespace esp32animations
         if (!runtime_animation.start_time_esp_millis)
             return 0;
         return current_millis - runtime_animation.start_time_esp_millis;
+    }
+
+    void Renderer::clear()
+    {
+        for(int i=0; i<m_number_of_leds; i++) {
+            m_leds_hsv[i].val = 0.0;
+        }
+    }
+
+    void Renderer::show() {
+        for(int i=0; i<m_number_of_leds; i++) {
+            const kivsee_render::HSV &hsvVal = m_leds_hsv[i];
+            float normalizedBrightness = hsvVal.val * hsvVal.val;
+            HsbColor neoPixelColor(fmod(hsvVal.hue, 1.0f) , hsvVal.sat, normalizedBrightness);
+            m_leds_rgb.SetPixelColor(i, neoPixelColor);
+        }
+
+        m_leds_rgb.Show();
+    }
+
+    kivsee_render::HSV *Renderer::hsv_painting_array() const {
+        return m_leds_hsv;
     }
 
 } // namespace esp32animations

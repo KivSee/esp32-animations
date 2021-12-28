@@ -5,7 +5,7 @@
 
 #include <sequence.h>
 
-bool handleTriggerInvokedMessage(const byte *payload, unsigned int length, esp32animations::RuntimeAnimation *newTimedAnimation)
+bool handleTriggerInvokedMessage(const byte *payload, unsigned int length, esp32animations::RuntimeAnimation *newTimedAnimation, const char *thing_name)
 {
     StaticJsonDocument<200> doc;
     DeserializationError error = deserializeJson(doc, payload, length);
@@ -30,7 +30,7 @@ bool handleTriggerInvokedMessage(const byte *payload, unsigned int length, esp32
     snprintf(buf, sizeof(buf), "got trigger: %s. guid: %d, start time: %lld", triggerName ? triggerName : "NONE", guid, startTimeMsSinceEpoch);
     Serial.println(buf);
 
-    newTimedAnimation->animation = loadSequence(triggerName, guid);
+    newTimedAnimation->animation = loadSequence(triggerName, guid, thing_name);
     if(newTimedAnimation->animation == nullptr) {
         return false;
     }

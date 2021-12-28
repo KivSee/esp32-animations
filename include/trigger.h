@@ -5,7 +5,7 @@
 
 #include "renderer.h"
 
-bool handleTriggerInvokedMessage(const byte *payload, unsigned int length, esp32animations::RuntimeAnimation *newTimedAnimation);
+bool handleTriggerInvokedMessage(const byte *payload, unsigned int length, esp32animations::RuntimeAnimation *newTimedAnimation, const char *thing_name);
 
 
 #endif // __TRIGGER_H__

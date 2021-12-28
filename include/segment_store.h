@@ -6,8 +6,8 @@
 #include "segments/segments_map.h"
 
 void initSegmentStore(kivsee_render::HSV *leds);
-void handleSegmentsGuidMessage(const byte *payload, unsigned int length);
-void httpGetConfig();
+void handleSegmentsGuidMessage(const byte *payload, unsigned int length, const char *thing_name);
+void httpGetConfig(const char *thing_name);
 kivsee_render::segments::SegmentsMap *getSegmentsMap();
 
 #endif // __SEGMENTS_STORE_H__

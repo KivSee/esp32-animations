@@ -17,24 +17,24 @@ const char *objectFileName = "/objects-config";
 // data structures to use during segments map construction
 kivsee_render::segments::SegmentsMap *segments_map = nullptr;
 
-kivsee_render::segments::SegmentsMap *initDefaultSegmentStore(kivsee_render::HSV *leds)
+kivsee_render::segments::SegmentsMap *initDefaultSegmentStore(kivsee_render::HSV *leds, uint16_t number_of_leds)
 {
     kivsee_render::segments::SegmentsMap *segmentsStore = new kivsee_render::segments::SegmentsMap();
     kivsee_render::segments::Segment segment;
     strncpy(segment.first, "all", 4);
-    for(int i=0; i<NUM_LEDS; i++) {
+    for(int i=0; i<number_of_leds; i++) {
         segment.second.push_back(&leds[i]);
     }
     segmentsStore->segments.push_back(segment);
     return segmentsStore;
 }
 
-void initSegmentStore(kivsee_render::HSV *leds)
+void initSegmentStore(kivsee_render::HSV *leds, uint16_t number_of_leds)
 {
     File file = SPIFFS.open(objectFileName, "r");
     if (!file || file.available() == 0)
     {
-        segments_map = initDefaultSegmentStore(leds);
+        segments_map = initDefaultSegmentStore(leds, number_of_leds);
         Serial.println("Failed to open objects config file for reading");
         return;
     }
@@ -59,7 +59,7 @@ void initSegmentStore(kivsee_render::HSV *leds)
     {
         Serial.println("Failed to initialize segment store");
         Serial.println(pbInputStream.errmsg);
-        segments_map = initDefaultSegmentStore(leds);
+        segments_map = initDefaultSegmentStore(leds, number_of_leds);
     }
     file.close();
 }
@@ -155,4 +155,28 @@ void httpGetConfig()
 
 kivsee_render::segments::SegmentsMap *getSegmentsMap() {
     return segments_map;
+}
+
+uint16_t readNumberOfPixels() {
+    File file = SPIFFS.open(objectFileName, "r");
+    if (!file || file.available() == 0)
+    {
+        Serial.println("Failed to open objects config file for reading");
+        return 0;
+    }
+
+    pb_istream_t pbInputStream = FileToPbStream(file);
+
+    // decode
+    uint16_t number_of_pixels = ::kivsee_render::segments::GetNumberOfPixels(&pbInputStream, nullptr, nullptr);
+    if (number_of_pixels == 0)
+    {
+        Serial.println("Failed to read number of pixels from config");
+        return 0;
+    }
+
+    Serial.print("read number of pixels from config: ");
+    Serial.println(number_of_pixels);
+    file.close();
+    return number_of_pixels;
 }

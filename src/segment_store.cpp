@@ -20,12 +20,12 @@ kivsee_render::segments::SegmentsMap *segments_map = nullptr;
 kivsee_render::segments::SegmentsMap *initDefaultSegmentStore(kivsee_render::HSV *leds, uint16_t number_of_leds)
 {
     kivsee_render::segments::SegmentsMap *segmentsStore = new kivsee_render::segments::SegmentsMap();
-    kivsee_render::segments::Segment segment;
-    strncpy(segment.first, "all", 4);
-    for(int i=0; i<number_of_leds; i++) {
-        segment.second.push_back(&leds[i]);
-    }
-    segmentsStore->segments.push_back(segment);
+    // kivsee_render::segments::Segment segment;
+    // strncpy(segment.first, "all", 4);
+    // for(int i=0; i<number_of_leds; i++) {
+    //     segment.second.push_back(&leds[i]);
+    // }
+    // segmentsStore->segments.push_back(segment);
     return segmentsStore;
 }
 
@@ -87,7 +87,7 @@ void handleSegmentsGuidMessage(const byte *payload, unsigned int length, const c
 void httpGetConfig(const char *thing_name)
 {
     char uri[32];
-    int uriLen = snprintf(uri, sizeof(uri), "/led-object/%s", thing_name);
+    int uriLen = snprintf(uri, sizeof(uri), "/thing/%s", thing_name);
     if (uriLen < 0 || uriLen >= sizeof(uri))
     {
         Serial.println("cannot format led object uri");

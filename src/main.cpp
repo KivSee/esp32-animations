@@ -161,8 +161,10 @@ void MonitorLoop(void *parameter)
   bool hasThingName = fsManager.ReadThingName(thing_name, 16);
   while (!hasThingName)
   {
-      Serial.println("Thing name not configured - upload 'thing_info' file to continue");
-      delay(5000);
+    String str = "no name";
+    strcpy(thing_name, str.c_str()); 
+    Serial.println("Thing name not configured - upload 'thing_info' file to continue");
+    delay(5000);
   }
   Serial.print("Thing name: "); Serial.println(thing_name);
 

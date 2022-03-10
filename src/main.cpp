@@ -12,6 +12,7 @@
 #include <TimeSync.hpp>
 #include <segment_store.h>
 #include <trigger.h>
+#include <brightness.h>
 #include <pb_decode.h>
 #include <animation.pb.h>
 #include <effect.h>
@@ -28,6 +29,7 @@ TimeSync::TimeSyncClient timesync;
 
 QueueHandle_t runtime_animation_queue;
 QueueHandle_t epoch_time_update_queue;
+QueueHandle_t global_brightness_queue;
 QueueHandle_t runtime_animation_delete_queue;
 esp32animations::Renderer *renderer = nullptr;
 FsManager fsManager;
@@ -107,7 +109,18 @@ public:
   {
     esp32animations::RuntimeAnimation new_timed_animation = {};
     bool success = handleTriggerInvokedMessage(payload, length, &new_timed_animation, thing_name);
-    xQueueSend(runtime_animation_queue, &new_timed_animation, portMAX_DELAY);
+    if (success) {
+      xQueueSend(runtime_animation_queue, &new_timed_animation, portMAX_DELAY);
+    }
+  }
+
+  void NewGlobalBrightnessReceived(const byte *payload, unsigned int length)
+  {
+    float new_global_brightness;
+    bool success = handleGlobalBrightnessMessage(payload, length, &new_global_brightness);
+    if (success) {
+      xQueueSend(global_brightness_queue, &new_global_brightness, portMAX_DELAY);
+    }
   }
 };
 
@@ -270,8 +283,9 @@ void setup()
 
   runtime_animation_queue = xQueueCreate(5, sizeof(esp32animations::RuntimeAnimation));
   epoch_time_update_queue = xQueueCreate(5, sizeof(int64_t));
+  global_brightness_queue = xQueueCreate(5, sizeof(float));
   runtime_animation_delete_queue = xQueueCreate(5, sizeof(esp32animations::RuntimeAnimation));
-  renderer = new esp32animations::Renderer(runtime_animation_queue, epoch_time_update_queue, runtime_animation_delete_queue, number_of_leds);
+  renderer = new esp32animations::Renderer(runtime_animation_queue, epoch_time_update_queue, global_brightness_queue, runtime_animation_delete_queue, number_of_leds);
   initSegmentStore(renderer->hsv_painting_array(), number_of_leds);
 
   fsManager.setup();

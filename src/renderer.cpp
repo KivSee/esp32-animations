@@ -3,13 +3,15 @@
 namespace esp32animations
 {
 
-    Renderer::Renderer(QueueHandle_t in_runtime_animation_queue, QueueHandle_t in_epoch_time_update_queue, QueueHandle_t out_runtime_animation_queue, uint16_t number_of_leds)
+    Renderer::Renderer(QueueHandle_t in_runtime_animation_queue, QueueHandle_t in_epoch_time_update_queue, QueueHandle_t in_global_brightness_queue, QueueHandle_t out_runtime_animation_queue, uint16_t number_of_leds)
         : in_runtime_animation_queue(in_runtime_animation_queue), 
             in_epoch_time_update_queue(in_epoch_time_update_queue), 
+            in_global_brightness_queue(in_global_brightness_queue), 
             out_runtime_animation_queue(out_runtime_animation_queue), 
             m_number_of_leds(number_of_leds),
             m_leds_hsv(new kivsee_render::HSV[number_of_leds]),
-            m_leds_rgb(number_of_leds, DATA_PIN) 
+            m_leds_rgb(number_of_leds, DATA_PIN),
+            m_global_brightness(1.0)
     {
         m_leds_rgb.Begin();
     }
@@ -18,6 +20,7 @@ namespace esp32animations
     {
         readRuntimeAnimationFromQueue();
         readEpochTimeUpdateFromQueue();
+        readGlobalBrightnessFromQueue();
 
         clear();
         if (runtime_animation.animation != nullptr)
@@ -50,6 +53,14 @@ namespace esp32animations
         }
     }
 
+    void Renderer::readGlobalBrightnessFromQueue()
+    {
+        if (xQueueReceive(in_global_brightness_queue, &m_global_brightness, 0) == pdTRUE)
+        {
+            // m_global_brightness = new_global_brightness;
+        }
+    }
+
     void Renderer::updateAnimationEspStartTime(RuntimeAnimation *runtime_animation)
     {
         if (runtime_animation->start_time_ms_since_epoch != 0 && esp_start_time != 0)
@@ -75,7 +86,7 @@ namespace esp32animations
     void Renderer::show() {
         for(int i=0; i<m_number_of_leds; i++) {
             const kivsee_render::HSV &hsvVal = m_leds_hsv[i];
-            float normalizedBrightness = hsvVal.val * hsvVal.val;
+            float normalizedBrightness = hsvVal.val * hsvVal.val * m_global_brightness;
             HsbColor neoPixelColor(fmod(hsvVal.hue, 1.0f) , hsvVal.sat, normalizedBrightness);
             m_leds_rgb.SetPixelColor(i, neoPixelColor);
         }

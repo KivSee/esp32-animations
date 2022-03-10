@@ -11,6 +11,7 @@
 #endif //MQTT_BROKER_PORT
 
 const char *triggerTopic = "trigger";
+const char *brightnessTopic = "brightness";
 
 class MosquittoManager : public MqttManager
 {
@@ -32,6 +33,7 @@ public:
             client.subscribe((String("animations/") + String(thing_name) + String("/#")).c_str(), 1);
             client.subscribe((String("obj/") + String(thing_name) + String("/guid")).c_str(), 1);
             client.subscribe(triggerTopic, 1);
+            client.subscribe(brightnessTopic, 1);
         }
         else
         {
@@ -81,6 +83,8 @@ private:
             callback->NewConfigGuidReceived(payload, length, thing_name);
         } else if(strncmp(triggerTopic, topic, sizeof(triggerTopic) + 1) == 0) {
             callback->TriggerInvoked(payload, length);
+        } else if(strncmp(brightnessTopic, topic, sizeof(brightnessTopic) + 1) == 0) {
+            callback->NewGlobalBrightnessReceived(payload,length);
         } else {
             Serial.println("different topic?");
         }

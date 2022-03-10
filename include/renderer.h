@@ -27,7 +27,7 @@ namespace esp32animations
     class Renderer
     {
     public:
-        Renderer(QueueHandle_t in_runtime_animation_queue, QueueHandle_t in_epoch_time_update_queue, QueueHandle_t out_runtime_animation_queue, uint16_t number_of_leds);
+        Renderer(QueueHandle_t in_runtime_animation_queue, QueueHandle_t in_epoch_time_update_queue, QueueHandle_t in_global_brightness_queue, QueueHandle_t out_runtime_animation_queue, uint16_t number_of_leds);
         void loop(unsigned long current_millis);
         kivsee_render::HSV *hsv_painting_array() const;
 
@@ -38,12 +38,14 @@ namespace esp32animations
     private:
         QueueHandle_t in_runtime_animation_queue;
         QueueHandle_t in_epoch_time_update_queue;
+        QueueHandle_t in_global_brightness_queue;
 
         QueueHandle_t out_runtime_animation_queue;
 
     private:
         void readRuntimeAnimationFromQueue();
         void readEpochTimeUpdateFromQueue();
+        void readGlobalBrightnessFromQueue();
         void updateAnimationEspStartTime(RuntimeAnimation *runtime_animation);
         unsigned long getAnimationTime(unsigned long current_millis, const RuntimeAnimation &runtime_animation);
 
@@ -55,6 +57,7 @@ namespace esp32animations
         uint16_t m_number_of_leds;
         kivsee_render::HSV *m_leds_hsv;
         NeoPixelBus<COLOR_ORDER, Neo800KbpsMethod> m_leds_rgb;
+        float m_global_brightness;
     };
 
 } // namespace esp32animations

@@ -109,9 +109,9 @@ public:
   {
     esp32animations::RuntimeAnimation new_timed_animation = {};
     bool success = handleTriggerInvokedMessage(payload, length, &new_timed_animation, thing_name);
-    if (success) {
+    // if (success) {  // we don't check the success to allow the stop_animations trigger to get through, this needs better fixing
       xQueueSend(runtime_animation_queue, &new_timed_animation, portMAX_DELAY);
-    }
+    // }
   }
 
   void NewGlobalBrightnessReceived(const byte *payload, unsigned int length)

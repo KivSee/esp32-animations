@@ -8,7 +8,6 @@
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 #include <SPIFFS.h>
-#include <WebServer.h>
 #include <InfluxDbClient.h>
 
 #include <TimeSync.hpp>
@@ -35,13 +34,12 @@ QueueHandle_t global_brightness_queue;
 QueueHandle_t runtime_animation_delete_queue;
 esp32animations::Renderer *renderer = nullptr;
 FsManager fsManager;
-WebServer webServer(80);
 
 TaskHandle_t Task1;
 
-#define INFLUXDB_URL "http://10.0.0.37:8086"
+#define INFLUXDB_URL "http://10.0.0.200:8086"
 #define INFLUXDB_DB_NAME "kivsee"
-InfluxDBClient influxClient(INFLUXDB_URL, "a", "kivsee", "p8BGYKE3_68nwg_VepXr2gf4uan_IfDZ8kjkd88aBWr6wg8xgCaiMAQLitQp2p_I8_-UZY8SGuhlwADbklXepw==");
+InfluxDBClient influxClient(INFLUXDB_URL, INFLUXDB_DB_NAME);
 Point sensor("wifi_status");
 
 void PrintCorePrefix()
@@ -135,14 +133,6 @@ public:
 MqttCallbacks mqttCallbacks;
 MqttManager *mqttManager;
 
-void handle_prometheus() {
-  // Serial.println("got client http");
-  // char buf[1024];
-  // sprintf(buf, "wifi_signal_strength %d\nuptime %d\nfree_heap %d\n", WiFi.RSSI(), millis(), esp_get_free_heap_size());
-  // // String metric1 = String("wifi_signal_strength: ") + WiFi.RSSI() + "\n";
-  // webServer.send(200, "text/plain", buf);
-}
-
 void ConnectToWifi()
 {
   if (WiFi.status() == WL_CONNECTED)
@@ -191,8 +181,6 @@ void MonitorLoop(void *parameter)
 
   // Hostname defaults to esp3232-[MAC]
   ArduinoOTA.setHostname(thing_name);
-  webServer.begin();
-  webServer.on("/metrics", handle_prometheus);
 
   // No authentication by default
   // ArduinoOTA.setPassword("admin");
@@ -297,7 +285,6 @@ void MonitorLoop(void *parameter)
     }
 
     ArduinoOTA.handle();
-    webServer.handleClient();
 
     vTaskDelay(5);
   }

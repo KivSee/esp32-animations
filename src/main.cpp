@@ -37,7 +37,7 @@ FsManager fsManager;
 
 TaskHandle_t Task1;
 
-#define INFLUXDB_URL "http://10.0.0.200:8086"
+#define INFLUXDB_URL "http://" INFLUXDB_IP ":" INFLUXDB_PORT
 #define INFLUXDB_DB_NAME "kivsee"
 InfluxDBClient influxClient(INFLUXDB_URL, INFLUXDB_DB_NAME);
 Point sensor("wifi_status");
@@ -238,7 +238,7 @@ void MonitorLoop(void *parameter)
     }
     else if (isTimeChanged)
     {
-      Serial.println("TIME CHANGED. new synced clock is availible to the esp");
+      Serial.println("TIME CHANGED. new synced clock is available to the esp");
     }
 
     if (isTimeChanged || isFirstClockUpdate)

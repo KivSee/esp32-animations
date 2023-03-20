@@ -8,6 +8,7 @@
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 #include <SPIFFS.h>
+#include <InfluxDbClient.h>
 
 #include <TimeSync.hpp>
 #include <segment_store.h>
@@ -35,6 +36,11 @@ esp32animations::Renderer *renderer = nullptr;
 FsManager fsManager;
 
 TaskHandle_t Task1;
+
+#define INFLUXDB_URL "http://" INFLUXDB_IP ":" INFLUXDB_PORT
+#define INFLUXDB_DB_NAME "kivsee"
+InfluxDBClient influxClient(INFLUXDB_URL, INFLUXDB_DB_NAME);
+Point sensor("wifi_status");
 
 void PrintCorePrefix()
 {
@@ -212,6 +218,8 @@ void MonitorLoop(void *parameter)
 
   ArduinoOTA.begin();
 
+  sensor.addTag("device", thing_name);
+
   IPAddress ntpServerIp;
   Serial.print("Time sync server IP: ");
   Serial.println(TIME_SERVER_IP);
@@ -230,7 +238,7 @@ void MonitorLoop(void *parameter)
     }
     else if (isTimeChanged)
     {
-      Serial.println("TIME CHANGED. new synced clock is availible to the esp");
+      Serial.println("TIME CHANGED. new synced clock is available to the esp");
     }
 
     if (isTimeChanged || isFirstClockUpdate)
@@ -250,7 +258,23 @@ void MonitorLoop(void *parameter)
       Serial.println(WiFi.status() == WL_CONNECTED);
       Serial.print("[0] mqtt client connected: ");
       Serial.println(mqttManager->connected());
+      Serial.print("[0] rssi: ");
+      Serial.println(WiFi.RSSI());
       lastReportTime = currTime;
+
+      sensor.clearFields();
+      // Report RSSI of currently connected network
+      sensor.addField("rssi", WiFi.RSSI());
+      sensor.addField("uptime", millis());
+      sensor.addField("free heap", esp_get_free_heap_size());
+      // Print what are we exactly writing
+      Serial.print("Writing: ");
+      Serial.println(sensor.toLineProtocol()); 
+      // Write point
+      if (!influxClient.writePoint(sensor)) {
+        Serial.print("InfluxDB write failed: ");
+        Serial.println(influxClient.getLastErrorMessage());
+      }
     }
     mqttManager->loop();
 

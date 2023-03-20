@@ -54,6 +54,8 @@ void initSegmentStore(kivsee_render::HSV *leds, uint16_t number_of_leds)
         Serial.println(segments_map->guid);
         Serial.print("number of pixels: ");
         Serial.println(segments_map->number_of_pixels);
+        Serial.print("number of segments: ");
+        Serial.println(segments_map->segments.size());
     }
     else
     {

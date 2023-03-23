@@ -22,6 +22,13 @@ pb_istream_t FileToPbStream(File &f)
     return stream;
 }
 
+// this function is called by nanopb decoder when it needs more proto bytes to consume.
+// we basically just proxy the call back to the input stream.
+// 
+// this function returns if the read is successfull or not.
+// 
+// notice that reading from the stream is blocking until there is data to consume
+// with timeout of 1 second (which will lead to failure).
 bool StreamRead_callback(pb_istream_t *stream, uint8_t *buf, size_t count)
 {
     Stream *sourceStream= (Stream *)stream->state;
@@ -30,15 +37,16 @@ bool StreamRead_callback(pb_istream_t *stream, uint8_t *buf, size_t count)
     {
         for(int i=0; i<count; i++) {
             int res = sourceStream->read();
-            if(res < 0) {
+            if(res < 0) { // failed to read a byte
                 return false;
             }
         }
         return true;
+    } else {
+        size_t bytesRead = sourceStream->readBytes(buf, count);
+        bool readAsRequested = (bytesRead == count);
+        return readAsRequested;
     }
-
-    size_t bytesRead = sourceStream->readBytes(buf, count);
-    return bytesRead == count;
 }
 
 pb_istream_t StreamToPbStream(Stream *s, size_t totalSize)

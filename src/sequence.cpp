@@ -48,8 +48,14 @@
         return nullptr;
     }
 
-    Stream *httpStream = http.getStreamPtr();
     int payloadSize = http.getSize();
+    if (payloadSize < 0) {
+        Serial.println(F("failed to GET led sequence payload in http response"));
+        http.end();
+        return nullptr;
+    }
+
+    Stream *httpStream = http.getStreamPtr();
     pb_istream_t nanopbStream = StreamToPbStream(httpStream, payloadSize);
 
     kivsee_render::DecodeAnimationArgs args = {

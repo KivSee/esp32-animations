@@ -17,4 +17,6 @@
 // TODO: can we use stdio buffering to speed things up?
 pb_istream_t FileToPbStream(File &f);
 
+pb_istream_t StreamToPbStream(Stream *s, size_t totalSize);
+
 #endif // __PROTOBUF_INFRA_H__

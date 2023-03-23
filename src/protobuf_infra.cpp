@@ -21,3 +21,28 @@ pb_istream_t FileToPbStream(File &f)
     stream.bytes_left = f.available();
     return stream;
 }
+
+bool StreamRead_callback(pb_istream_t *stream, uint8_t *buf, size_t count)
+{
+    Stream *sourceStream= (Stream *)stream->state;
+
+    if (buf == nullptr) // consume bytes wiutout doing aynthing with them
+    {
+        for(int i=0; i<count; i++) {
+            int res = sourceStream->read();
+            if(res < 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    size_t bytesRead = sourceStream->readBytes(buf, count);
+    return bytesRead == count;
+}
+
+pb_istream_t StreamToPbStream(Stream *s, size_t totalSize)
+{
+    pb_istream_t stream = {&StreamRead_callback, s, totalSize};
+    return stream;
+}

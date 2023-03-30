@@ -9,7 +9,7 @@
 #include "protobuf_infra.h"
 #include "segment_store.h"
 
-::kivsee_render::Animation *httpGetSequence(const char *triggerName, uint32_t guid, const char *thing_name)
+::kivsee_render::Animation *SequenceManager::httpGetSequence(const char *triggerName, uint32_t guid, const char *thing_name)
 {
     char uri[128];
     int uriLen = snprintf(uri, sizeof(uri), "/triggers/%s/objects/%s/guid/%lu", triggerName, thing_name, guid);
@@ -55,13 +55,17 @@
         return nullptr;
     }
 
-    Stream *httpStream = http.getStreamPtr();
+    WiFiClient *httpStream = http.getStreamPtr();
     pb_istream_t nanopbStream = StreamToPbStream(httpStream, payloadSize);
 
     kivsee_render::DecodeAnimationArgs args = {
         getSegmentsMap()
     };
     void *decodeArgs = &args;
+
+    uint32_t preDecodeHeapSize = esp_get_free_heap_size();
+    Serial.print(F("decoding trigger sequence. heap size: "));
+    Serial.println(preDecodeHeapSize);
 
     bool decodeSuccess = kivsee_render::DecodeAnimationFromPbStream(&nanopbStream, nullptr, &decodeArgs);
     if(!decodeSuccess) {
@@ -71,17 +75,21 @@
         return nullptr;
     }
 
+    uint32_t heapUsed = preDecodeHeapSize - esp_get_free_heap_size();
+
     ::kivsee_render::Animation *animation = (::kivsee_render::Animation *)decodeArgs;
     Serial.print(F("successfully decoded sequence from protobuf. found "));
     Serial.print(animation->effects.size());
-    Serial.println(F(" effects"));
+    Serial.print(F(" effects consuming "));
+    Serial.print(heapUsed);
+    Serial.println(F(" bytes."));
 
     http.end();
 
     return animation;
 }
 
-::kivsee_render::Animation *loadSequence(const char *triggerName, uint32_t guid, const char *thing_name)
+::kivsee_render::Animation *SequenceManager::loadSequence(const char *triggerName, uint32_t guid, const char *thing_name)
 {
     // we used to have another option here to read from FS as a fast caching,
     // but the FS write were sooooo slow (~5 seconds)
@@ -90,5 +98,22 @@
     //
     // when we have lots of controllers, this might overload the network / service,
     // which will need to be tested and verified to work properly
-    return httpGetSequence(triggerName, guid, thing_name);
+
+    bool sameTrigger = strcmp(m_lastTriggerName.c_str(), triggerName) == 0;
+    bool sameGuid = m_lastTriggerGuid == guid;
+    if(sameTrigger && sameGuid) {
+        Serial.println(F("got the same trigger and guid again"));
+        return m_lastDecodedAnimation;
+    }
+
+    ::kivsee_render::Animation *animation = this->httpGetSequence(triggerName, guid, thing_name);
+    if(animation != nullptr) {
+        // store last value into the state to return it if needed again
+        m_lastTriggerName = triggerName;
+        m_lastTriggerGuid = guid;
+        m_lastDecodedAnimation = animation;
+    }
+    Serial.print(F("free heap after http: "));
+    Serial.println(esp_get_free_heap_size());
+    return animation;
 }

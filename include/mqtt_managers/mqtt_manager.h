@@ -3,9 +3,6 @@
 
 #include <fs_manager.h>
 
-#define MQTT_BROKER_GOOGLE 1
-//#define MQTT_BROKER_MOSQITTO 1
-
 class MqttManagerCallbacks {
 
     public:

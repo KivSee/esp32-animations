@@ -20,6 +20,12 @@ bool handleTriggerInvokedMessage(const byte *payload, unsigned int length, esp32
     }
 
     const char *triggerName = doc["trigger_name"].as<const char *>();
+    if(!triggerName) {
+        Serial.println("no active trigger");
+        newTimedAnimation->animation = nullptr;
+        return true;
+    }
+
     uint32_t guid = doc["guid"].as<uint32_t>();
     uint64_t startTimeMsSinceEpoch = doc["start_time_ms_since_epoch"].as<uint64_t>();
 
@@ -30,14 +36,9 @@ bool handleTriggerInvokedMessage(const byte *payload, unsigned int length, esp32
     newTimedAnimation->start_time_ms_since_epoch = startTimeMsSinceEpoch;
     newTimedAnimation->start_time_esp_millis = 0;
 
-    if(!triggerName) {
-        Serial.println("no active trigger");
-        newTimedAnimation->animation = nullptr;
-    } else {
-        newTimedAnimation->animation = sequenceManager.loadSequence(triggerName, guid, thing_name);
-        if(newTimedAnimation->animation == nullptr) {
-            return false;
-        }
+    newTimedAnimation->animation = sequenceManager.loadSequence(triggerName, guid, thing_name);
+    if(newTimedAnimation->animation == nullptr) {
+        return false;
     }
 
     return true;

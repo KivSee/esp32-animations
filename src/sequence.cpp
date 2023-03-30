@@ -104,11 +104,6 @@
     if(sameTrigger && sameGuid) {
         Serial.println(F("got the same trigger and guid again"));
         return m_lastDecodedAnimation;
-    } else {
-        Serial.print(F("previous was "));
-        Serial.print(m_lastTriggerName.c_str());
-        Serial.print(F(" and guid"));
-        Serial.println(m_lastTriggerGuid);
     }
 
     ::kivsee_render::Animation *animation = this->httpGetSequence(triggerName, guid, thing_name);

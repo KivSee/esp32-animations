@@ -27,7 +27,7 @@ namespace esp32animations
     class Renderer
     {
     public:
-        Renderer(QueueHandle_t in_runtime_animation_queue, QueueHandle_t in_epoch_time_update_queue, QueueHandle_t in_global_brightness_queue, QueueHandle_t out_runtime_animation_queue, uint16_t number_of_leds);
+        Renderer(QueueHandle_t in_runtime_animation_queue, QueueHandle_t in_epoch_time_update_queue, QueueHandle_t in_global_brightness_queue, uint16_t number_of_leds);
         void loop(unsigned long current_millis);
         kivsee_render::HSV *hsv_painting_array() const;
 
@@ -39,8 +39,6 @@ namespace esp32animations
         QueueHandle_t in_runtime_animation_queue;
         QueueHandle_t in_epoch_time_update_queue;
         QueueHandle_t in_global_brightness_queue;
-
-        QueueHandle_t out_runtime_animation_queue;
 
     private:
         void readRuntimeAnimationFromQueue();

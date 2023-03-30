@@ -5,6 +5,21 @@
 
 #include "animation.h"
 
-::kivsee_render::Animation *loadSequence(const char *triggerName, uint32_t guid, const char *thing_name);
+class SequenceManager {
+
+    public:
+        ::kivsee_render::Animation *loadSequence(const char *triggerName, uint32_t guid, const char *thing_name);
+        
+    private:
+        ::kivsee_render::Animation *httpGetSequence(const char *triggerName, uint32_t guid, const char *thing_name);
+
+    private:
+
+        // cache the last values we received.
+        // if we get the same message, return it from cache instead of allocating again on heap
+        String m_lastTriggerName;
+        uint32_t m_lastTriggerGuid;
+        ::kivsee_render::Animation *m_lastDecodedAnimation;
+};
 
 #endif // __SEQUENCE_H__

@@ -5,6 +5,8 @@
 
 #include <sequence.h>
 
+SequenceManager sequenceManager;
+
 bool handleTriggerInvokedMessage(const byte *payload, unsigned int length, esp32animations::RuntimeAnimation *newTimedAnimation, const char *thing_name)
 {
     StaticJsonDocument<200> doc;
@@ -18,11 +20,6 @@ bool handleTriggerInvokedMessage(const byte *payload, unsigned int length, esp32
     }
 
     const char *triggerName = doc["trigger_name"].as<const char *>();
-    if(!triggerName) {
-        Serial.println("no active trigger");
-        return false;
-    }
-
     uint32_t guid = doc["guid"].as<uint32_t>();
     uint64_t startTimeMsSinceEpoch = doc["start_time_ms_since_epoch"].as<uint64_t>();
 
@@ -30,12 +27,18 @@ bool handleTriggerInvokedMessage(const byte *payload, unsigned int length, esp32
     snprintf(buf, sizeof(buf), "got trigger: %s. guid: %d, start time: %lld", triggerName ? triggerName : "NONE", guid, startTimeMsSinceEpoch);
     Serial.println(buf);
 
-    newTimedAnimation->animation = loadSequence(triggerName, guid, thing_name);
-    if(newTimedAnimation->animation == nullptr) {
-        return false;
-    }
     newTimedAnimation->start_time_ms_since_epoch = startTimeMsSinceEpoch;
     newTimedAnimation->start_time_esp_millis = 0;
+
+    if(!triggerName) {
+        Serial.println("no active trigger");
+        newTimedAnimation->animation = nullptr;
+    } else {
+        newTimedAnimation->animation = sequenceManager.loadSequence(triggerName, guid, thing_name);
+        if(newTimedAnimation->animation == nullptr) {
+            return false;
+        }
+    }
 
     return true;
 }

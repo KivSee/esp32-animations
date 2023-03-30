@@ -3,11 +3,10 @@
 namespace esp32animations
 {
 
-    Renderer::Renderer(QueueHandle_t in_runtime_animation_queue, QueueHandle_t in_epoch_time_update_queue, QueueHandle_t in_global_brightness_queue, QueueHandle_t out_runtime_animation_queue, uint16_t number_of_leds)
+    Renderer::Renderer(QueueHandle_t in_runtime_animation_queue, QueueHandle_t in_epoch_time_update_queue, QueueHandle_t in_global_brightness_queue, uint16_t number_of_leds)
         : in_runtime_animation_queue(in_runtime_animation_queue), 
             in_epoch_time_update_queue(in_epoch_time_update_queue), 
             in_global_brightness_queue(in_global_brightness_queue), 
-            out_runtime_animation_queue(out_runtime_animation_queue), 
             m_number_of_leds(number_of_leds),
             m_leds_hsv(new kivsee_render::HSV[number_of_leds]),
             m_leds_rgb(number_of_leds, DATA_PIN),
@@ -40,8 +39,9 @@ namespace esp32animations
         if (xQueueReceive(in_runtime_animation_queue, &new_runtime_animation, 0) == pdTRUE)
         {
             const bool animationChanged = runtime_animation.animation != new_runtime_animation.animation;
+            // it's the responsibility of the consumer to delete the memory once done with it
             if(animationChanged) {
-                xQueueSend(out_runtime_animation_queue, &runtime_animation, 0);
+                delete runtime_animation.animation;
             }
             runtime_animation = new_runtime_animation;
             updateAnimationEspStartTime(&runtime_animation);

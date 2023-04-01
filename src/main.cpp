@@ -31,6 +31,7 @@ TimeSync::TimeSyncClient timesync;
 QueueHandle_t runtime_animation_queue;
 QueueHandle_t epoch_time_update_queue;
 QueueHandle_t global_brightness_queue;
+QueueHandle_t runtime_animation_delete_queue;
 esp32animations::Renderer *renderer = nullptr;
 FsManager fsManager;
 
@@ -277,6 +278,12 @@ void MonitorLoop(void *parameter)
     }
     mqttManager->loop();
 
+    esp32animations::RuntimeAnimation animation_from_del_q;
+    if (xQueueReceive(runtime_animation_delete_queue, &animation_from_del_q, 0) == pdTRUE)
+    {
+      delete animation_from_del_q.animation;
+    }
+
     ArduinoOTA.handle();
 
     vTaskDelay(5);
@@ -303,7 +310,8 @@ void setup()
   runtime_animation_queue = xQueueCreate(5, sizeof(esp32animations::RuntimeAnimation));
   epoch_time_update_queue = xQueueCreate(5, sizeof(int64_t));
   global_brightness_queue = xQueueCreate(5, sizeof(float));
-  renderer = new esp32animations::Renderer(runtime_animation_queue, epoch_time_update_queue, global_brightness_queue, number_of_leds);
+  runtime_animation_delete_queue = xQueueCreate(5, sizeof(esp32animations::RuntimeAnimation));
+  renderer = new esp32animations::Renderer(runtime_animation_queue, epoch_time_update_queue, global_brightness_queue, runtime_animation_delete_queue, number_of_leds);
   initSegmentStore(renderer->hsv_painting_array(), number_of_leds);
 
   fsManager.setup();

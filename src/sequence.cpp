@@ -4,10 +4,32 @@
 #include <pb_decode.h>
 
 #include <animation.h>
+#include "renderer.h"
 
 #include "secrets.h"
 #include "protobuf_infra.h"
 #include "segment_store.h"
+
+SequenceManager::SequenceManager(QueueHandle_t runtime_animation_delete_queue)
+    :
+    runtime_animation_delete_queue(runtime_animation_delete_queue)
+{
+    
+}
+
+void SequenceManager::loop() {
+    esp32animations::RuntimeAnimation animation_from_del_q;
+    while(xQueueReceive(runtime_animation_delete_queue, &animation_from_del_q, 0) == pdTRUE)
+    {
+        kivsee_render::Animation *animationToDelete = animation_from_del_q.animation;
+        if(animationToDelete == m_lastDecodedAnimation) {
+            // if we delete this memory, we can no longer use it
+            deleteAnimationCache();
+        }
+        delete animationToDelete;
+        animationToDelete = nullptr;
+    }
+}
 
 ::kivsee_render::Animation *SequenceManager::httpGetSequence(const char *triggerName, uint32_t guid, const char *thing_name)
 {
@@ -100,8 +122,8 @@
     // which will need to be tested and verified to work properly
 
     bool sameTrigger = strcmp(m_lastTriggerName.c_str(), triggerName) == 0;
-    bool sameGuid = m_lastTriggerGuid == guid;
-    if(sameTrigger && sameGuid) {
+    bool sameGuid = (guid != 0) && (m_lastTriggerGuid == guid);
+    if(sameTrigger && sameGuid && m_lastDecodedAnimation) {
         Serial.println(F("got the same trigger and guid again"));
         return m_lastDecodedAnimation;
     }
@@ -116,4 +138,10 @@
     Serial.print(F("free heap after http: "));
     Serial.println(esp_get_free_heap_size());
     return animation;
+}
+
+void SequenceManager::deleteAnimationCache() {
+    m_lastTriggerName.clear();
+    m_lastTriggerGuid = 0;
+    m_lastDecodedAnimation = nullptr;
 }

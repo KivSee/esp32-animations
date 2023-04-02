@@ -44,7 +44,10 @@ namespace esp32animations
         unsigned long getAnimationTime(unsigned long current_millis, const RuntimeAnimation &runtime_animation);
 
     private:
-        RuntimeAnimation runtime_animation = {nullptr, 0};
+        RuntimeAnimation runtime_animation = {
+            .animation = nullptr, 
+            .start_time_ms_since_epoch = 0
+        };
         int64_t esp_start_time = 0;
 
     private:

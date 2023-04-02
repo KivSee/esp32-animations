@@ -21,22 +21,20 @@
 #include <mqtt_managers/mqtt_manager.h>
 #include <fs_manager.h>
 #include <time_manager.h>
+#include <queue_manager.h>
 
 #define MAX_THING_NAME_LENGTH 16
 char thing_name[MAX_THING_NAME_LENGTH];
 
 const unsigned int WD_TIMEOUT_MS = 2000;
 
-QueueHandle_t runtime_animation_queue;
-QueueHandle_t epoch_time_update_queue;
-QueueHandle_t global_brightness_queue;
-QueueHandle_t runtime_animation_delete_queue;
-esp32animations::Renderer *renderer = nullptr;
-SequenceManager *sequenceManager = nullptr;
+const QueueManager queueManager;
+esp32animations::Renderer *renderer = nullptr; // initialize after we read num pixels
+SequenceManager sequenceManager(queueManager.runtime_animation_queue, queueManager.runtime_animation_delete_queue);
 FsManager fsManager;
-TimeManager *timeManager = nullptr;
+TimeManager timeManager(queueManager.epoch_time_update_queue);
 
-TaskHandle_t Task1;
+TaskHandle_t monitorTask;
 
 #define INFLUXDB_URL "http://" INFLUXDB_IP ":" INFLUXDB_PORT
 #define INFLUXDB_DB_NAME "kivsee"
@@ -62,7 +60,7 @@ public:
 
   void TriggerInvoked(const byte *payload, unsigned int length)
   {
-    sequenceManager->handleTriggerInvokedMessage(payload, length, thing_name);
+    sequenceManager.handleTriggerInvokedMessage(payload, length, thing_name);
   }
 
   void NewGlobalBrightnessReceived(const byte *payload, unsigned int length)
@@ -70,7 +68,7 @@ public:
     float new_global_brightness;
     bool success = handleGlobalBrightnessMessage(payload, length, &new_global_brightness);
     if (success) {
-      xQueueSend(global_brightness_queue, &new_global_brightness, portMAX_DELAY);
+      xQueueSend(queueManager.global_brightness_queue, &new_global_brightness, portMAX_DELAY);
     }
   }
 };
@@ -108,17 +106,6 @@ void ConnectToWifi()
 
 void MonitorLoop(void *parameter)
 {
-
-  bool hasThingName = fsManager.ReadThingName(thing_name, 16);
-  while (!hasThingName)
-  {
-    String str = "no name";
-    strcpy(thing_name, str.c_str()); 
-    Serial.println("Thing name not configured - upload 'thing_info' file to continue");
-    delay(5000);
-  }
-  Serial.print("Thing name: "); Serial.println(thing_name);
-
   ConnectToWifi();
 
   // Port defaults to 3232
@@ -162,7 +149,7 @@ void MonitorLoop(void *parameter)
       });
 
   ArduinoOTA.begin();
-  timeManager->begin();
+  timeManager.begin();
 
   sensor.addTag("device", thing_name);
 
@@ -198,9 +185,9 @@ void MonitorLoop(void *parameter)
         Serial.println(influxClient.getLastErrorMessage());
       }
     }
-    timeManager->loop();
+    timeManager.loop();
     mqttManager->loop();
-    sequenceManager->loop();
+    sequenceManager.loop();
 
     ArduinoOTA.handle();
 
@@ -220,19 +207,22 @@ void setup()
 
   disableCore0WDT();
 
+  bool hasThingName = fsManager.ReadThingName(thing_name, 16);
+  while (!hasThingName)
+  {
+    String str = "no name";
+    strcpy(thing_name, str.c_str()); 
+    Serial.println("Thing name not configured - upload 'thing_info' file to continue");
+    delay(5000);
+  }
+  Serial.print("Thing name: "); Serial.println(thing_name);
+
   uint16_t number_of_leds = readNumberOfPixels();
   if(number_of_leds == 0) {
     number_of_leds = 300;
   }
 
-  runtime_animation_queue = xQueueCreate(5, sizeof(esp32animations::RuntimeAnimation));
-  epoch_time_update_queue = xQueueCreate(5, sizeof(int64_t));
-  global_brightness_queue = xQueueCreate(5, sizeof(float));
-  runtime_animation_delete_queue = xQueueCreate(5, sizeof(esp32animations::RuntimeAnimation));
-
-  renderer = new esp32animations::Renderer(runtime_animation_queue, epoch_time_update_queue, global_brightness_queue, runtime_animation_delete_queue, number_of_leds);
-  sequenceManager = new SequenceManager(runtime_animation_queue, runtime_animation_delete_queue);
-  timeManager = new TimeManager(epoch_time_update_queue);
+  renderer = new esp32animations::Renderer(queueManager, number_of_leds);
 
   initSegmentStore(renderer->hsv_painting_array(), number_of_leds);
 
@@ -246,7 +236,7 @@ void setup()
       8192,          /* Stack size in words */
       NULL,          /* Task input parameter */
       0,             /* Priority of the task */
-      &Task1,        /* Task handle. */
+      &monitorTask,  /* Task handle. */
       0);            /* Core where the task should run */
 }
 

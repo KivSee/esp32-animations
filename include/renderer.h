@@ -9,6 +9,7 @@
 #include "runtime_animation.h"
 #include "hsv.h"
 #include "secrets.h"
+#include "queue_manager.h"
 
 namespace esp32animations
 {
@@ -21,7 +22,7 @@ namespace esp32animations
     class Renderer
     {
     public:
-        Renderer(QueueHandle_t in_runtime_animation_queue, QueueHandle_t in_epoch_time_update_queue, QueueHandle_t in_global_brightness_queue, QueueHandle_t out_runtime_animation_queue, uint16_t number_of_leds);
+        Renderer(const QueueManager &queueManager, uint16_t number_of_leds);
         void loop(unsigned long current_millis);
         kivsee_render::HSV *hsv_painting_array() const;
 
@@ -30,11 +31,7 @@ namespace esp32animations
         void show();
 
     private:
-        QueueHandle_t in_runtime_animation_queue;
-        QueueHandle_t in_epoch_time_update_queue;
-        QueueHandle_t in_global_brightness_queue;
-
-        QueueHandle_t out_runtime_animation_queue;
+        const QueueManager m_queueManager;
 
     private:
         void readRuntimeAnimationFromQueue();

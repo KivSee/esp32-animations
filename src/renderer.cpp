@@ -3,11 +3,8 @@
 namespace esp32animations
 {
 
-    Renderer::Renderer(QueueHandle_t in_runtime_animation_queue, QueueHandle_t in_epoch_time_update_queue, QueueHandle_t in_global_brightness_queue, QueueHandle_t out_runtime_animation_queue, uint16_t number_of_leds)
-        : in_runtime_animation_queue(in_runtime_animation_queue),
-          in_epoch_time_update_queue(in_epoch_time_update_queue),
-          in_global_brightness_queue(in_global_brightness_queue),
-          out_runtime_animation_queue(out_runtime_animation_queue),
+    Renderer::Renderer(const QueueManager &queueManager, uint16_t number_of_leds)
+        : m_queueManager(queueManager),
           m_number_of_leds(number_of_leds),
           m_leds_hsv(new kivsee_render::HSV[number_of_leds]),
           m_leds_rgb(number_of_leds, DATA_PIN),
@@ -37,7 +34,7 @@ namespace esp32animations
     void Renderer::readRuntimeAnimationFromQueue()
     {
         RuntimeAnimation new_runtime_animation;
-        if (xQueueReceive(in_runtime_animation_queue, &new_runtime_animation, 0) == pdTRUE)
+        if (xQueueReceive(m_queueManager.runtime_animation_queue, &new_runtime_animation, 0) == pdTRUE)
         {
             Serial.print(F("[1] received new animations with "));
             Serial.print(new_runtime_animation.animation ? new_runtime_animation.animation->effects.size() : 0);
@@ -45,7 +42,7 @@ namespace esp32animations
             const bool animationChanged = runtime_animation.animation != new_runtime_animation.animation;
             if (animationChanged)
             {
-                xQueueSend(out_runtime_animation_queue, &runtime_animation, 0);
+                xQueueSend(m_queueManager.runtime_animation_delete_queue, &runtime_animation, 0);
             }
             runtime_animation = new_runtime_animation;
         }
@@ -55,16 +52,14 @@ namespace esp32animations
     {
         // unblocking consume all from queue and update value into esp_start_time.
         // finish when no more things in the queue.
-        while (xQueueReceive(in_epoch_time_update_queue, &esp_start_time, 0) == pdTRUE)
+        while (xQueueReceive(m_queueManager.epoch_time_update_queue, &esp_start_time, 0) == pdTRUE)
             ;
     }
 
     void Renderer::readGlobalBrightnessFromQueue()
     {
-        if (xQueueReceive(in_global_brightness_queue, &m_global_brightness, 0) == pdTRUE)
-        {
-            // m_global_brightness = new_global_brightness;
-        }
+        while (xQueueReceive(m_queueManager.global_brightness_queue, &m_global_brightness, 0) == pdTRUE)
+            ;
     }
 
     // returns the relative time, in ms, of the current rendered animation.

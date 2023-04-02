@@ -11,7 +11,7 @@
 #include "segment_store.h"
 #include "runtime_animation.h"
 
-SequenceManager::SequenceManager(QueueManager &queueManager)
+SequenceManager::SequenceManager(const QueueManager &queueManager)
         : 
     m_runtime_animation_queue(queueManager.runtime_animation_queue),
     m_runtime_animation_delete_queue(queueManager.runtime_animation_delete_queue)

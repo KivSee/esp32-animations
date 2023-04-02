@@ -9,7 +9,7 @@
 class SequenceManager {
 
     public:
-        SequenceManager(QueueManager &queueManager);
+        SequenceManager(const QueueManager &queueManager);
         void loop();
         void handleTriggerInvokedMessage(const byte *payload, unsigned int length, const char *thing_name);
         

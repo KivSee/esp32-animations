@@ -3,7 +3,7 @@
 namespace esp32animations
 {
 
-    Renderer::Renderer(QueueManager &queueManager, uint16_t number_of_leds)
+    Renderer::Renderer(const QueueManager &queueManager, uint16_t number_of_leds)
         : m_queueManager(queueManager),
           m_number_of_leds(number_of_leds),
           m_leds_hsv(new kivsee_render::HSV[number_of_leds]),

@@ -22,7 +22,7 @@ namespace esp32animations
     class Renderer
     {
     public:
-        Renderer(QueueManager &queueManager, uint16_t number_of_leds);
+        Renderer(const QueueManager &queueManager, uint16_t number_of_leds);
         void loop(unsigned long current_millis);
         kivsee_render::HSV *hsv_painting_array() const;
 
@@ -31,7 +31,7 @@ namespace esp32animations
         void show();
 
     private:
-        QueueManager m_queueManager;
+        const QueueManager m_queueManager;
 
     private:
         void readRuntimeAnimationFromQueue();

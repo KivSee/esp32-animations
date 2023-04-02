@@ -28,7 +28,7 @@ char thing_name[MAX_THING_NAME_LENGTH];
 
 const unsigned int WD_TIMEOUT_MS = 2000;
 
-QueueManager queueManager;
+const QueueManager queueManager;
 esp32animations::Renderer *renderer = nullptr; // initialize after we read num pixels
 SequenceManager sequenceManager(queueManager);
 FsManager fsManager;

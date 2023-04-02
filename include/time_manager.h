@@ -9,7 +9,7 @@ class TimeManager
 {
 
 public:
-    TimeManager(QueueManager &queueManager);
+    TimeManager(const QueueManager &queueManager);
     void begin();
     void loop();
 

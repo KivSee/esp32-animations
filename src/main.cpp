@@ -30,9 +30,9 @@ const unsigned int WD_TIMEOUT_MS = 2000;
 
 const QueueManager queueManager;
 esp32animations::Renderer *renderer = nullptr; // initialize after we read num pixels
-SequenceManager sequenceManager(queueManager);
+SequenceManager sequenceManager(queueManager.runtime_animation_queue, queueManager.runtime_animation_delete_queue);
 FsManager fsManager;
-TimeManager timeManager(queueManager);
+TimeManager timeManager(queueManager.epoch_time_update_queue);
 
 TaskHandle_t monitorTask;
 

@@ -4,12 +4,11 @@
 #include <Arduino.h>
 
 #include "animation.h"
-#include "queue_manager.h"
 
 class SequenceManager {
 
     public:
-        SequenceManager(const QueueManager &queueManager);
+        SequenceManager(QueueHandle_t runtime_animation_queue, QueueHandle_t runtime_animation_delete_queue);
         void loop();
         void handleTriggerInvokedMessage(const byte *payload, unsigned int length, const char *thing_name);
         

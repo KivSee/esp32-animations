@@ -3,8 +3,8 @@
 
 #include <Arduino.h>
 
-TimeManager::TimeManager(const QueueManager &queueManager)
-    : m_epoch_time_update_queue(queueManager.epoch_time_update_queue)
+TimeManager::TimeManager(QueueHandle_t epoch_time_update_queue)
+    : m_epoch_time_update_queue(epoch_time_update_queue)
 {
     m_timesync.updateConfiguration(15, 1000 * 60 * 10, 250, 1000 * 60 * 2);
 }

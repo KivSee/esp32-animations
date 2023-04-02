@@ -10,7 +10,6 @@
 #include <SPIFFS.h>
 #include <InfluxDbClient.h>
 
-#include <TimeSync.hpp>
 #include <segment_store.h>
 #include <sequence.h>
 #include <brightness.h>
@@ -21,12 +20,12 @@
 #include <renderer.h>
 #include <mqtt_managers/mqtt_manager.h>
 #include <fs_manager.h>
+#include <time_manager.h>
 
 #define MAX_THING_NAME_LENGTH 16
 char thing_name[MAX_THING_NAME_LENGTH];
 
 const unsigned int WD_TIMEOUT_MS = 2000;
-TimeSync::TimeSyncClient timesync;
 
 QueueHandle_t runtime_animation_queue;
 QueueHandle_t epoch_time_update_queue;
@@ -35,6 +34,7 @@ QueueHandle_t runtime_animation_delete_queue;
 esp32animations::Renderer *renderer = nullptr;
 SequenceManager *sequenceManager = nullptr;
 FsManager fsManager;
+TimeManager *timeManager = nullptr;
 
 TaskHandle_t Task1;
 
@@ -162,36 +162,13 @@ void MonitorLoop(void *parameter)
       });
 
   ArduinoOTA.begin();
+  timeManager->begin();
 
   sensor.addTag("device", thing_name);
-
-  IPAddress ntpServerIp;
-  Serial.print("Time sync server IP: ");
-  Serial.println(TIME_SERVER_IP);
-  ntpServerIp.fromString(TIME_SERVER_IP);
-  timesync.updateConfiguration(15, 1000 * 60 * 10, 250, 1000 * 60 * 2);
-  timesync.setup(ntpServerIp, 12321);
 
   unsigned int lastReportTime = millis();
   for (;;)
   {
-    bool isTimeChanged, isFirstClockUpdate;
-    timesync.loop(&isTimeChanged, &isFirstClockUpdate);
-    if (isFirstClockUpdate)
-    {
-      Serial.println("TIME IS NOW VALID. the esp clock was not valid and now it is");
-    }
-    else if (isTimeChanged)
-    {
-      Serial.println("TIME CHANGED. new synced clock is available to the esp");
-    }
-
-    if (isTimeChanged || isFirstClockUpdate)
-    {
-      int64_t espStartTime = timesync.getEspStartTimeMs();
-      xQueueSend(epoch_time_update_queue, &espStartTime, portMAX_DELAY);
-    }
-
     ConnectToWifi();
     mqttManager->connectToMessageBroker(thing_name);
     unsigned int currTime = millis();
@@ -221,6 +198,7 @@ void MonitorLoop(void *parameter)
         Serial.println(influxClient.getLastErrorMessage());
       }
     }
+    timeManager->loop();
     mqttManager->loop();
     sequenceManager->loop();
 
@@ -254,6 +232,7 @@ void setup()
 
   renderer = new esp32animations::Renderer(runtime_animation_queue, epoch_time_update_queue, global_brightness_queue, runtime_animation_delete_queue, number_of_leds);
   sequenceManager = new SequenceManager(runtime_animation_queue, runtime_animation_delete_queue);
+  timeManager = new TimeManager(epoch_time_update_queue);
 
   initSegmentStore(renderer->hsv_painting_array(), number_of_leds);
 

@@ -6,18 +6,12 @@
 #include <NeoPixelBus.h>
 
 #include "animation.h"
+#include "runtime_animation.h"
 #include "hsv.h"
 #include "secrets.h"
 
 namespace esp32animations
 {
-
-    struct RuntimeAnimation
-    {
-        kivsee_render::Animation *animation;
-        unsigned long start_time_esp_millis;
-        uint64_t start_time_ms_since_epoch;
-    };
 
     /*
     All the renderning stuff.

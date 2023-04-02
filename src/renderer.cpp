@@ -75,10 +75,13 @@ namespace esp32animations
         }
     }
 
+    // returns the relative time, in ms, of the current rendered animation.
+    // 0 means its just started, 1000 means it started 1 second ago
     unsigned long Renderer::getAnimationTime(unsigned long current_millis, const RuntimeAnimation &runtime_animation)
     {
         if (!runtime_animation.start_time_esp_millis)
             return 0;
+        
         return current_millis - runtime_animation.start_time_esp_millis;
     }
 

@@ -95,11 +95,7 @@ private:
         }
         Serial.println();
 
-        if (strncmp("animations/", topic, 11) == 0)
-        {
-            Serial.println("topic animation?");
-            callback->NewAnimationReceived(String(topic + 11), payload, length);
-        } else if(strncmp("obj/", topic, 4) == 0) {
+        if(strncmp("obj/", topic, 4) == 0) {
             callback->NewConfigGuidReceived(payload, length, thing_name);
         } else if(strncmp(triggerTopic, topic, sizeof(triggerTopic) + 1) == 0) {
             callback->TriggerInvoked(payload, length);

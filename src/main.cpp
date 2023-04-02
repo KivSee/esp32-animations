@@ -50,62 +50,10 @@ void PrintCorePrefix()
   Serial.print("]: ");
 }
 
-void HandleTimedAnimationMsg(const byte *payload, unsigned int length)
-{
-
-  Serial.print("HandleTimedAnimationMsg(): payload: ");
-  for (int i = 0; i < length; i++)
-  {
-    Serial.print(payload[i], HEX);
-  }
-  Serial.println("");
-  Serial.print("length: ");
-  Serial.println(length);
-
-  pb_istream_t in_stream = pb_istream_from_buffer(payload, length);
-
-  esp32animations::RuntimeAnimation new_timed_animation;
-  TimedAnimationProto timed_animation = TimedAnimationProto_init_zero;
-
-  timed_animation.animation.funcs.decode = &kivsee_render::DecodeAnimationFromPbStream;
-  kivsee_render::DecodeAnimationArgs args = {
-      getSegmentsMap()};
-  timed_animation.animation.arg = &args;
-
-  bool success = pb_decode(&in_stream, TimedAnimationProto_fields, &timed_animation);
-  if (!success)
-  {
-    Serial.print("failed to handle new animation msg. error: ");
-    Serial.println(in_stream.errmsg);
-    return;
-  }
-
-  Serial.println("succesfully initialized new animation");
-
-  new_timed_animation.animation = (::kivsee_render::Animation *)timed_animation.animation.arg;
-
-  if (timed_animation.start_time_ms_since_epoch)
-  {
-    new_timed_animation.start_time_esp_millis = 0;
-    new_timed_animation.start_time_ms_since_epoch = timed_animation.start_time_ms_since_epoch;
-  }
-  else
-  {
-    new_timed_animation.start_time_esp_millis = millis();
-    new_timed_animation.start_time_ms_since_epoch = 0;
-  }
-
-  xQueueSend(runtime_animation_queue, &new_timed_animation, portMAX_DELAY);
-}
-
 class MqttCallbacks : public MqttManagerCallbacks
 {
 
 public:
-  void NewAnimationReceived(String triggerName, const byte *payload, unsigned int length)
-  {
-    HandleTimedAnimationMsg(payload, length);
-  }
 
   void NewConfigGuidReceived(const byte *payload, unsigned int length, const char *thing_name)
   {

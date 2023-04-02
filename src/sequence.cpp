@@ -5,11 +5,11 @@
 #include <ArduinoJson.h>
 
 #include <animation.h>
-#include "renderer.h"
 
 #include "secrets.h"
 #include "protobuf_infra.h"
 #include "segment_store.h"
+#include "runtime_animation.h"
 
 SequenceManager::SequenceManager(QueueHandle_t runtime_animation_queue, QueueHandle_t runtime_animation_delete_queue)
         : 

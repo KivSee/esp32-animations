@@ -13,8 +13,10 @@ namespace esp32animations
         // it is created and deleted on core 0 and consumed by core 1
         kivsee_render::Animation *animation;
 
-        unsigned long start_time_esp_millis;
-        
+        // this is the ephoc time at which animation started.
+        // it is a very large number (ms since 1970)
+        // and is combined with esp epoch start time and current millis
+        // to derive song offset time in millis
         uint64_t start_time_ms_since_epoch;
     };
 

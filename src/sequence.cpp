@@ -2,6 +2,7 @@
 
 #include <HTTPClient.h>
 #include <pb_decode.h>
+#include <ArduinoJson.h>
 
 #include <animation.h>
 #include "renderer.h"
@@ -10,24 +11,19 @@
 #include "protobuf_infra.h"
 #include "segment_store.h"
 
-SequenceManager::SequenceManager(QueueHandle_t runtime_animation_delete_queue)
-    :
-    runtime_animation_delete_queue(runtime_animation_delete_queue)
+SequenceManager::SequenceManager(QueueHandle_t runtime_animation_queue, QueueHandle_t runtime_animation_delete_queue)
+        : 
+    m_runtime_animation_queue(runtime_animation_queue),
+    m_runtime_animation_delete_queue(runtime_animation_delete_queue)
 {
-    
 }
 
-void SequenceManager::loop() {
+void SequenceManager::loop()
+{
     esp32animations::RuntimeAnimation animation_from_del_q;
-    while(xQueueReceive(runtime_animation_delete_queue, &animation_from_del_q, 0) == pdTRUE)
+    while (xQueueReceive(m_runtime_animation_delete_queue, &animation_from_del_q, 0) == pdTRUE)
     {
-        kivsee_render::Animation *animationToDelete = animation_from_del_q.animation;
-        if(animationToDelete == m_lastDecodedAnimation) {
-            // if we delete this memory, we can no longer use it
-            deleteAnimationCache();
-        }
-        delete animationToDelete;
-        animationToDelete = nullptr;
+        deleteRuntimeAnimation(animation_from_del_q.animation);
     }
 }
 
@@ -45,7 +41,8 @@ void SequenceManager::loop() {
     Serial.println(uri);
 
     uint16_t port = (uint16_t)strtoul(LED_SEQ_SERVICE_PORT, nullptr, 10);
-    if(port == 0) {
+    if (port == 0)
+    {
         Serial.println(F("could not parse sequence service port"));
         return nullptr;
     }
@@ -71,7 +68,8 @@ void SequenceManager::loop() {
     }
 
     int payloadSize = http.getSize();
-    if (payloadSize < 0) {
+    if (payloadSize < 0)
+    {
         Serial.println(F("failed to GET led sequence payload in http response"));
         http.end();
         return nullptr;
@@ -81,8 +79,7 @@ void SequenceManager::loop() {
     pb_istream_t nanopbStream = StreamToPbStream(httpStream, payloadSize);
 
     kivsee_render::DecodeAnimationArgs args = {
-        getSegmentsMap()
-    };
+        getSegmentsMap()};
     void *decodeArgs = &args;
 
     uint32_t preDecodeHeapSize = esp_get_free_heap_size();
@@ -90,7 +87,8 @@ void SequenceManager::loop() {
     Serial.println(preDecodeHeapSize);
 
     bool decodeSuccess = kivsee_render::DecodeAnimationFromPbStream(&nanopbStream, nullptr, &decodeArgs);
-    if(!decodeSuccess) {
+    if (!decodeSuccess)
+    {
         Serial.print(F("failed to decode sequence proto. error: "));
         Serial.println(nanopbStream.errmsg);
         http.end();
@@ -123,13 +121,19 @@ void SequenceManager::loop() {
 
     bool sameTrigger = strcmp(m_lastTriggerName.c_str(), triggerName) == 0;
     bool sameGuid = (guid != 0) && (m_lastTriggerGuid == guid);
-    if(sameTrigger && sameGuid && m_lastDecodedAnimation) {
+    if (sameTrigger && sameGuid && m_lastDecodedAnimation)
+    {
         Serial.println(F("got the same trigger and guid again"));
         return m_lastDecodedAnimation;
     }
 
+    // before loading new sequence, reclame previous one
+    sendEmptyAnimationToRenderer();
+    waitForMemoryReclame(2000);
+
     ::kivsee_render::Animation *animation = this->httpGetSequence(triggerName, guid, thing_name);
-    if(animation != nullptr) {
+    if (animation != nullptr)
+    {
         // store last value into the state to return it if needed again
         m_lastTriggerName = triggerName;
         m_lastTriggerGuid = guid;
@@ -140,8 +144,74 @@ void SequenceManager::loop() {
     return animation;
 }
 
-void SequenceManager::deleteAnimationCache() {
-    m_lastTriggerName.clear();
-    m_lastTriggerGuid = 0;
-    m_lastDecodedAnimation = nullptr;
+bool SequenceManager::waitForMemoryReclame(uint maxMsToWait)
+{
+
+    if (!hasCachedValue())
+    {
+        return true;
+    }
+
+    esp32animations::RuntimeAnimation animation_from_del_q;
+    TickType_t xTicksToWait = maxMsToWait / portTICK_PERIOD_MS;
+    while (hasCachedValue() && xQueueReceive(m_runtime_animation_delete_queue, &animation_from_del_q, xTicksToWait) == pdTRUE)
+    {
+        deleteRuntimeAnimation(animation_from_del_q.animation);
+    }
+
+    return hasCachedValue();
+}
+
+void SequenceManager::deleteRuntimeAnimation(kivsee_render::Animation *animationToDelete)
+{
+    if (animationToDelete == m_lastDecodedAnimation)
+    {
+        // if we delete this memory, we can no longer use it
+        m_lastTriggerName.clear();
+        m_lastTriggerGuid = 0;
+        m_lastDecodedAnimation = nullptr;
+    }
+    delete animationToDelete;
+}
+
+void SequenceManager::sendEmptyAnimationToRenderer()
+{
+    esp32animations::RuntimeAnimation new_timed_animation = {nullptr, 0, 0};
+    xQueueSend(m_runtime_animation_queue, &new_timed_animation, portMAX_DELAY);
+}
+
+void SequenceManager::handleTriggerInvokedMessage(const byte *payload, unsigned int length, const char *thing_name)
+{
+    StaticJsonDocument<200> doc;
+    DeserializationError error = deserializeJson(doc, payload, length);
+
+    if (error)
+    {
+        Serial.print(F("deserializeJson() failed: "));
+        Serial.println(error.f_str());
+        return;
+    }
+
+    const char *triggerName = doc["trigger_name"].as<const char *>();
+    if (!triggerName)
+    {
+        Serial.println("no active trigger");
+        sendEmptyAnimationToRenderer();
+        return;
+    }
+
+    uint32_t guid = doc["guid"].as<uint32_t>();
+    uint64_t startTimeMsSinceEpoch = doc["start_time_ms_since_epoch"].as<uint64_t>();
+
+    char buf[200];
+    snprintf(buf, sizeof(buf), "got trigger: %s. guid: %d, start time: %lld", triggerName ? triggerName : "NONE", guid, startTimeMsSinceEpoch);
+    Serial.println(buf);
+
+    ::kivsee_render::Animation *animation = loadSequence(triggerName, guid, thing_name);
+    esp32animations::RuntimeAnimation new_timed_animation = {
+        .animation = animation, 
+        .start_time_esp_millis = (unsigned long)0, 
+        .start_time_ms_since_epoch = startTimeMsSinceEpoch
+    };
+    xQueueSend(m_runtime_animation_queue, &new_timed_animation, portMAX_DELAY);
 }

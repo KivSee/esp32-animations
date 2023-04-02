@@ -12,7 +12,6 @@
 
 #include <TimeSync.hpp>
 #include <segment_store.h>
-#include <trigger.h>
 #include <sequence.h>
 #include <brightness.h>
 #include <pb_decode.h>
@@ -115,11 +114,7 @@ public:
 
   void TriggerInvoked(const byte *payload, unsigned int length)
   {
-    esp32animations::RuntimeAnimation new_timed_animation = {};
-    bool success = handleTriggerInvokedMessage(payload, length, &new_timed_animation, thing_name, sequenceManager);
-    // if (success) {  // we don't check the success to allow the stop_animations trigger to get through, this needs better fixing
-      xQueueSend(runtime_animation_queue, &new_timed_animation, portMAX_DELAY);
-    // }
+    sequenceManager->handleTriggerInvokedMessage(payload, length, thing_name);
   }
 
   void NewGlobalBrightnessReceived(const byte *payload, unsigned int length)
@@ -310,7 +305,7 @@ void setup()
   runtime_animation_delete_queue = xQueueCreate(5, sizeof(esp32animations::RuntimeAnimation));
 
   renderer = new esp32animations::Renderer(runtime_animation_queue, epoch_time_update_queue, global_brightness_queue, runtime_animation_delete_queue, number_of_leds);
-  sequenceManager = new SequenceManager(runtime_animation_delete_queue);
+  sequenceManager = new SequenceManager(runtime_animation_queue, runtime_animation_delete_queue);
 
   initSegmentStore(renderer->hsv_painting_array(), number_of_leds);
 

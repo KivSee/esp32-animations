@@ -11,10 +11,10 @@
 #include "segment_store.h"
 #include "runtime_animation.h"
 
-SequenceManager::SequenceManager(QueueHandle_t runtime_animation_queue, QueueHandle_t runtime_animation_delete_queue)
+SequenceManager::SequenceManager(QueueManager &queueManager)
         : 
-    m_runtime_animation_queue(runtime_animation_queue),
-    m_runtime_animation_delete_queue(runtime_animation_delete_queue)
+    m_runtime_animation_queue(queueManager.runtime_animation_queue),
+    m_runtime_animation_delete_queue(queueManager.runtime_animation_delete_queue)
 {
 }
 

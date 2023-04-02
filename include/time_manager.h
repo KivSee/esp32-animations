@@ -3,12 +3,13 @@
 
 #include <TimeSync.hpp>
 #include <freertos/queue.h>
+#include "queue_manager.h"
 
 class TimeManager
 {
 
 public:
-    TimeManager(QueueHandle_t epoch_time_update_queue);
+    TimeManager(QueueManager &queueManager);
     void begin();
     void loop();
 

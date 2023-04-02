@@ -4,8 +4,9 @@
 #include <Arduino.h>
 
 #include "renderer.h"
+#include "sequence.h"
 
-bool handleTriggerInvokedMessage(const byte *payload, unsigned int length, esp32animations::RuntimeAnimation *newTimedAnimation, const char *thing_name);
+bool handleTriggerInvokedMessage(const byte *payload, unsigned int length, esp32animations::RuntimeAnimation *newTimedAnimation, const char *thing_name, SequenceManager *sequenceManager);
 
 
 #endif // __TRIGGER_H__

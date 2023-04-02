@@ -176,7 +176,10 @@ void SequenceManager::deleteRuntimeAnimation(kivsee_render::Animation *animation
 
 void SequenceManager::sendEmptyAnimationToRenderer()
 {
-    esp32animations::RuntimeAnimation new_timed_animation = {nullptr, 0, 0};
+    esp32animations::RuntimeAnimation new_timed_animation = {
+        .animation = nullptr, 
+        .start_time_ms_since_epoch = 0
+    };
     xQueueSend(m_runtime_animation_queue, &new_timed_animation, portMAX_DELAY);
 }
 
@@ -210,7 +213,6 @@ void SequenceManager::handleTriggerInvokedMessage(const byte *payload, unsigned 
     ::kivsee_render::Animation *animation = loadSequence(triggerName, guid, thing_name);
     esp32animations::RuntimeAnimation new_timed_animation = {
         .animation = animation, 
-        .start_time_esp_millis = (unsigned long)0, 
         .start_time_ms_since_epoch = startTimeMsSinceEpoch
     };
     xQueueSend(m_runtime_animation_queue, &new_timed_animation, portMAX_DELAY);

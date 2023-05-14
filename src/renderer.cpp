@@ -18,6 +18,7 @@ namespace esp32animations
         readRuntimeAnimationFromQueue();
         readEpochTimeUpdateFromQueue();
         readGlobalBrightnessFromQueue();
+        reportMetricsIfNeeded();
 
         clear();
         if (runtime_animation.animation != nullptr)
@@ -25,10 +26,17 @@ namespace esp32animations
             unsigned long current_animation_time = getAnimationTime(current_millis, runtime_animation);
             if (current_animation_time)
             {
+                unsigned long start_render_time = millis();
                 runtime_animation.animation->Render(current_animation_time);
+                unsigned long render_time = millis() - start_render_time;
+                if (render_time > m_metrics.maxFrameRenderTime)
+                {
+                    m_metrics.maxFrameRenderTime = render_time;
+                }
             }
         }
         show();
+        m_metrics.totalFrames++;
     }
 
     void Renderer::readRuntimeAnimationFromQueue()
@@ -60,6 +68,17 @@ namespace esp32animations
     {
         while (xQueueReceive(m_queueManager.global_brightness_queue, &m_global_brightness, 0) == pdTRUE)
             ;
+    }
+
+    void Renderer::reportMetricsIfNeeded()
+    {
+        if (millis() - m_last_metrics_report_time < METRICS_REPORT_INTERVAL_MS) {
+            return;
+        }
+
+        m_last_metrics_report_time = millis();
+        xQueueSend(m_queueManager.core1_metrics_queue, &m_metrics, 0);
+        m_metrics.maxFrameRenderTime = 0;
     }
 
     // returns the relative time, in ms, of the current rendered animation.

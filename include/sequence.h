@@ -22,8 +22,8 @@ class SequenceManager {
 
     private:
 
-        QueueHandle_t m_runtime_animation_delete_queue;
         QueueHandle_t m_runtime_animation_queue;
+        QueueHandle_t m_runtime_animation_delete_queue;
 
         // cache the last values we received.
         // if we get the same message, return it from cache instead of allocating again on heap

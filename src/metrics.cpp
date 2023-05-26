@@ -31,6 +31,7 @@ void Metrics::loop()
   metricsPoint.addField("free heap", esp_get_free_heap_size());
   metricsPoint.addField("total frames", core1Metrics.totalFrames);
   metricsPoint.addField("max render ms", core1Metrics.maxFrameRenderTime);
+  metricsPoint.addField("num effects rendered", core1Metrics.numEffectsRendered);
 
   // Print what are we exactly writing
   // Serial.print("Writing: ");

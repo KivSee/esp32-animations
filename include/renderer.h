@@ -58,7 +58,7 @@ namespace esp32animations
         Core1Metrics m_metrics = {
             .totalFrames = 0,
             .maxFrameRenderTime = 0,
-            .activeEffects = 0,
+            .numEffectsRendered = 0,
         };
     };
 

@@ -11,7 +11,7 @@ namespace esp32animations
     {
         unsigned int totalFrames;
         unsigned long maxFrameRenderTime;
-        unsigned int activeEffects;
+        unsigned int numEffectsRendered;
     };
 
 }

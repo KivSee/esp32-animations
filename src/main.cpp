@@ -8,7 +8,6 @@
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 #include <SPIFFS.h>
-#include <InfluxDbClient.h>
 
 #include <segment_store.h>
 #include <sequence.h>
@@ -22,6 +21,7 @@
 #include <fs_manager.h>
 #include <time_manager.h>
 #include <queue_manager.h>
+#include <metrics.h>
 
 #define MAX_THING_NAME_LENGTH 16
 char thing_name[MAX_THING_NAME_LENGTH];
@@ -33,13 +33,9 @@ esp32animations::Renderer *renderer = nullptr; // initialize after we read num p
 SequenceManager sequenceManager(queueManager.runtime_animation_queue, queueManager.runtime_animation_delete_queue);
 FsManager fsManager;
 TimeManager timeManager(queueManager.epoch_time_update_queue);
+Metrics metrics(queueManager.core1_metrics_queue);
 
 TaskHandle_t monitorTask;
-
-#define INFLUXDB_URL "http://" INFLUXDB_IP ":" INFLUXDB_PORT
-#define INFLUXDB_DB_NAME "kivsee"
-InfluxDBClient influxClient(INFLUXDB_URL, INFLUXDB_DB_NAME);
-Point sensor("wifi_status");
 
 void PrintCorePrefix()
 {
@@ -151,8 +147,6 @@ void MonitorLoop(void *parameter)
   ArduinoOTA.begin();
   timeManager.begin();
 
-  sensor.addTag("device", thing_name);
-
   unsigned int lastReportTime = millis();
   for (;;)
   {
@@ -170,21 +164,8 @@ void MonitorLoop(void *parameter)
       Serial.print("[0] rssi: ");
       Serial.println(WiFi.RSSI());
       lastReportTime = currTime;
-
-      sensor.clearFields();
-      // Report RSSI of currently connected network
-      sensor.addField("rssi", WiFi.RSSI());
-      sensor.addField("uptime", millis());
-      sensor.addField("free heap", esp_get_free_heap_size());
-      // Print what are we exactly writing
-      Serial.print("Writing: ");
-      Serial.println(sensor.toLineProtocol()); 
-      // Write point
-      if (!influxClient.writePoint(sensor)) {
-        Serial.print("InfluxDB write failed: ");
-        Serial.println(influxClient.getLastErrorMessage());
-      }
     }
+    metrics.loop();
     timeManager.loop();
     mqttManager->loop();
     sequenceManager.loop();
@@ -216,6 +197,7 @@ void setup()
     delay(5000);
   }
   Serial.print("Thing name: "); Serial.println(thing_name);
+  metrics.setup(thing_name);
 
   uint16_t number_of_leds = readNumberOfPixels();
   if(number_of_leds == 0) {

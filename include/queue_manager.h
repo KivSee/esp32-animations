@@ -29,6 +29,10 @@ public:
     // and it can be disposed of (release memory, invalidate cache etc)
     QueueHandle_t runtime_animation_delete_queue;
 
+    // queue from core 1 to core 0
+    // periodically send metrics about rendering to core 0 for reporting
+    QueueHandle_t core1_metrics_queue;
+
 };
 
 #endif //__QUEUE_MANAGER_H__

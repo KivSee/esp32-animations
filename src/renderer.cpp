@@ -18,6 +18,7 @@ namespace esp32animations
         readRuntimeAnimationFromQueue();
         readEpochTimeUpdateFromQueue();
         readGlobalBrightnessFromQueue();
+        reportMetricsIfNeeded();
 
         clear();
         if (runtime_animation.animation != nullptr)
@@ -25,10 +26,24 @@ namespace esp32animations
             unsigned long current_animation_time = getAnimationTime(current_millis, runtime_animation);
             if (current_animation_time)
             {
-                runtime_animation.animation->Render(current_animation_time);
+                unsigned long start_render_time = millis();
+                kivsee_render::RenderStats renderStats = runtime_animation.animation->Render(current_animation_time);
+                unsigned long render_time = millis() - start_render_time;
+
+                // update metrics for current frame rendering
+                m_metrics.numEffectsRendered = renderStats.num_effects_rendered;
+                if (render_time > m_metrics.maxFrameRenderTime)
+                {
+                    m_metrics.maxFrameRenderTime = render_time;
+                }
             }
         }
+        else
+        {
+            m_metrics.numEffectsRendered = 0;
+        }
         show();
+        m_metrics.totalFrames++;
     }
 
     void Renderer::readRuntimeAnimationFromQueue()
@@ -62,6 +77,18 @@ namespace esp32animations
             ;
     }
 
+    void Renderer::reportMetricsIfNeeded()
+    {
+        if (millis() - m_last_metrics_report_time < METRICS_REPORT_INTERVAL_MS)
+        {
+            return;
+        }
+
+        m_last_metrics_report_time = millis();
+        xQueueSend(m_queueManager.core1_metrics_queue, &m_metrics, 0);
+        m_metrics.maxFrameRenderTime = 0;
+    }
+
     // returns the relative time, in ms, of the current rendered animation.
     // 0 means its just started, 1000 means it started 1 second ago
     unsigned long Renderer::getAnimationTime(unsigned long current_millis, const RuntimeAnimation &runtime_animation)
@@ -77,10 +104,7 @@ namespace esp32animations
 
     void Renderer::clear()
     {
-        for (int i = 0; i < m_number_of_leds; i++)
-        {
-            m_leds_hsv[i].val = 0.0;
-        }
+        memset(m_leds_hsv, 0, sizeof(kivsee_render::HSV) * m_number_of_leds);
     }
 
     void Renderer::show()

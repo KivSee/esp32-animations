@@ -10,6 +10,7 @@
 #include "hsv.h"
 #include "secrets.h"
 #include "queue_manager.h"
+#include "core1_metrics.h"
 
 namespace esp32animations
 {
@@ -37,6 +38,7 @@ namespace esp32animations
         void readRuntimeAnimationFromQueue();
         void readEpochTimeUpdateFromQueue();
         void readGlobalBrightnessFromQueue();
+        void reportMetricsIfNeeded();
         void updateAnimationEspStartTime(RuntimeAnimation *runtime_animation);
         unsigned long getAnimationTime(unsigned long current_millis, const RuntimeAnimation &runtime_animation);
 
@@ -52,6 +54,12 @@ namespace esp32animations
         kivsee_render::HSV *m_leds_hsv;
         NeoPixelBus<COLOR_ORDER, Neo800KbpsMethod> m_leds_rgb;
         float m_global_brightness;
+        unsigned long m_last_metrics_report_time = 0;
+        Core1Metrics m_metrics = {
+            .totalFrames = 0,
+            .maxFrameRenderTime = 0,
+            .numEffectsRendered = 0,
+        };
     };
 
 } // namespace esp32animations

@@ -8,4 +8,3 @@ The platformio command for the filesystem upload \
 
 ## secrets.h
 A secrets.h file needs to be created containing some basic information such as the WIFI network and password to connect, see secrets_template.h for reference
-

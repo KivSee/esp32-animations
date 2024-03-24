@@ -8,5 +8,8 @@ QueueManager::QueueManager() : runtime_animation_queue(xQueueCreate(5, sizeof(es
                                global_brightness_queue(xQueueCreate(5, sizeof(float))),
                                runtime_animation_delete_queue(xQueueCreate(5, sizeof(esp32animations::RuntimeAnimation))),
                                core1_metrics_queue(xQueueCreate(5, sizeof(esp32animations::Core1Metrics)))
+                                #if defined(KIVSEE_DEBUG)
+                                 , core0_health_queue(xQueueCreate(5, sizeof(float)))
+                                #endif
 {
 }

@@ -19,6 +19,9 @@ namespace esp32animations
         readEpochTimeUpdateFromQueue();
         readGlobalBrightnessFromQueue();
         reportMetricsIfNeeded();
+        #if defined(KIVSEE_DEBUG)
+        readCore0HealthFromQueue();
+        #endif
 
         clear();
         if (runtime_animation.animation != nullptr)
@@ -77,6 +80,15 @@ namespace esp32animations
             ;
     }
 
+    #if defined(KIVSEE_DEBUG)
+    void Renderer::readCore0HealthFromQueue()
+    {
+        while (xQueueReceive(m_queueManager.core0_health_queue, &m_core0_health, 0) == pdTRUE)
+            ;
+        
+    }
+    #endif
+
     void Renderer::reportMetricsIfNeeded()
     {
         if (millis() - m_last_metrics_report_time < METRICS_REPORT_INTERVAL_MS)
@@ -109,6 +121,23 @@ namespace esp32animations
 
     void Renderer::show()
     {
+
+        #if defined(KIVSEE_DEBUG)
+        unsigned long current_millis = millis();
+        for (int i = 0; i < m_number_of_leds; i++) {
+            m_leds_rgb.SetPixelColor(i, HsbColor(0.0, 0.0, 0.0));
+        }
+
+        // Led 0 is health indicator of core 1
+        // It blinks every 1 second in green
+        float brightness = current_millis % 1000 < 500 ? 1.0 : 0.0;
+        m_leds_rgb.SetPixelColor(0, HsbColor(0.0, 1.0, brightness));
+
+        // Led 1 is health indicator of core 0
+        // It blinks every 1 second in red
+        m_leds_rgb.SetPixelColor(1, HsbColor(0.25, 1.0, m_core0_health));
+
+        #else 
         for (int i = 0; i < m_number_of_leds; i++)
         {
             const kivsee_render::HSV &hsvVal = m_leds_hsv[i];
@@ -116,6 +145,8 @@ namespace esp32animations
             HsbColor neoPixelColor(fmod(hsvVal.hue, 1.0f), hsvVal.sat, normalizedBrightness);
             m_leds_rgb.SetPixelColor(i, neoPixelColor);
         }
+        #endif
+
 
         m_leds_rgb.Show();
     }

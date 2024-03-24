@@ -20,6 +20,7 @@ public:
     virtual void connectToMessageBroker(const char * thing_name) = 0;
     virtual bool publish(const char* payload) = 0;
     virtual bool connected() = 0;
+    virtual int state() = 0;
     virtual bool loop() = 0;    
 };
 

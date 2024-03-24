@@ -38,6 +38,9 @@ namespace esp32animations
         void readRuntimeAnimationFromQueue();
         void readEpochTimeUpdateFromQueue();
         void readGlobalBrightnessFromQueue();
+        #if defined(KIVSEE_DEBUG)
+        void readCore0HealthFromQueue();
+        #endif
         void reportMetricsIfNeeded();
         void updateAnimationEspStartTime(RuntimeAnimation *runtime_animation);
         unsigned long getAnimationTime(unsigned long current_millis, const RuntimeAnimation &runtime_animation);
@@ -60,6 +63,9 @@ namespace esp32animations
             .maxFrameRenderTime = 0,
             .numEffectsRendered = 0,
         };
+        #if defined(KIVSEE_DEBUG)
+        float m_core0_health = 0;
+        #endif
     };
 
 } // namespace esp32animations

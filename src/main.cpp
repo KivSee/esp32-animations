@@ -172,7 +172,7 @@ void MonitorLoop(void *parameter)
 
     ArduinoOTA.handle();
 
-    vTaskDelay(5);
+    vTaskDelay(10);
   }
 }
 
@@ -238,5 +238,5 @@ void loop()
     renderer->loop(current_millis);
   }
 
-  vTaskDelay(5);
+  vTaskDelay(10);
 }

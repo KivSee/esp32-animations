@@ -176,6 +176,10 @@ void MonitorLoop(void *parameter)
   }
 }
 
+void logPsMemory() {
+    log_d("Used PSRAM: %d", ESP.getPsramSize() - ESP.getFreePsram());
+}
+
 void setup()
 {
   Serial.begin(115200);
@@ -192,7 +196,7 @@ void setup()
   while (!hasThingName)
   {
     String str = "no name";
-    strcpy(thing_name, str.c_str()); 
+    strcpy(thing_name, str.c_str());
     Serial.println("Thing name not configured - upload 'thing_info' file to continue");
     delay(5000);
   }
@@ -211,6 +215,12 @@ void setup()
   fsManager.setup();
 
   mqttManager = createMqttManager(&mqttCallbacks, &fsManager);
+
+  log_d("Total heap: %d", ESP.getHeapSize());
+  log_d("Free heap: %d", ESP.getFreeHeap());
+  log_d("Total PSRAM: %d", ESP.getPsramSize());
+  log_d("Free PSRAM: %d", ESP.getFreePsram());
+  logPsMemory();
 
   xTaskCreatePinnedToCore(
       MonitorLoop,   /* Function to implement the task */

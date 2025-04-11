@@ -218,9 +218,11 @@ void setup()
 
   log_d("Total heap: %d", ESP.getHeapSize());
   log_d("Free heap: %d", ESP.getFreeHeap());
-  log_d("Total PSRAM: %d", ESP.getPsramSize());
-  log_d("Free PSRAM: %d", ESP.getFreePsram());
-  logPsMemory();
+  if (psramFound()) {
+    Serial.println("PSRAM detected and initialized!");
+    log_d("Total PSRAM: %d", ESP.getPsramSize());
+    logPsMemory();
+  }
 
   xTaskCreatePinnedToCore(
       MonitorLoop,   /* Function to implement the task */

@@ -14,7 +14,7 @@
 #include "runtime_animation.h"
 
 SequenceManager::SequenceManager(QueueHandle_t runtime_animation_queue, QueueHandle_t runtime_animation_delete_queue)
-        : 
+        :
     m_runtime_animation_queue(runtime_animation_queue),
     m_runtime_animation_delete_queue(runtime_animation_delete_queue)
 {
@@ -143,6 +143,9 @@ void SequenceManager::loop()
     }
     Serial.print(F("free heap after http: "));
     Serial.println(esp_get_free_heap_size());
+    #ifdef BOARD_HAS_PSRAM
+        Serial.printf("Used PSRAM: %d\n", ESP.getPsramSize() - ESP.getFreePsram());
+    #endif
     return animation;
 }
 
@@ -179,7 +182,7 @@ void SequenceManager::deleteRuntimeAnimation(kivsee_render::Animation *animation
 void SequenceManager::sendEmptyAnimationToRenderer()
 {
     esp32animations::RuntimeAnimation new_timed_animation = {
-        .animation = nullptr, 
+        .animation = nullptr,
         .start_time_ms_since_epoch = 0
     };
     xQueueSend(m_runtime_animation_queue, &new_timed_animation, portMAX_DELAY);
@@ -214,7 +217,7 @@ void SequenceManager::handleTriggerInvokedMessage(const byte *payload, unsigned 
 
     ::kivsee_render::Animation *animation = loadSequence(triggerName, guid, thing_name);
     esp32animations::RuntimeAnimation new_timed_animation = {
-        .animation = animation, 
+        .animation = animation,
         .start_time_ms_since_epoch = startTimeMsSinceEpoch
     };
     xQueueSend(m_runtime_animation_queue, &new_timed_animation, portMAX_DELAY);

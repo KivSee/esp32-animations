@@ -5,7 +5,7 @@
 #include <ArduinoJson.h>
 #include "protobuf_infra.h"
 #include "hsv.h"
-#include "segments.pb.h"
+#include <kivsee/proto/render/v1/segments.pb.h>
 #include "secrets.h"
 
 #ifndef LED_OBJECT_SERVICE_PORT

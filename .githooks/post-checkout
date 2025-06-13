@@ -1,0 +1,18 @@
+# This script works on Windows, Linux, and macOS
+# On Windows, it will be executed by Git Bash if available, or PowerShell
+# On Unix-like systems (Linux/macOS), it will be executed by sh
+
+# Check if we're on a Unix-like system (Linux or macOS)
+if [ "$(uname)" = "Linux" ] || [ "$(uname)" = "Darwin" ]; then
+    # Make the script executable if it isn't already
+    if [ ! -x "$0" ]; then
+        chmod +x "$0"
+        echo "Made script executable"
+    fi
+fi
+
+# Set skip-worktree for secrets.h
+git update-index --skip-worktree include/secrets.h
+
+# Print a helpful message
+echo "Configured secrets.h to ignore local changes"

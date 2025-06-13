@@ -7,4 +7,17 @@ The platformio command for the filesystem upload \
 `pio run -t uploadfs`
 
 ## secrets.h
-A secrets.h file needs to be created containing some basic information such as the WIFI network and password to connect, see secrets_template.h for reference
+The secrets.h file contains some basic information such as the WIFI network and password to connect, it is a template file, make sure to not commit sensitive data, see Local Development Setup section below
+
+### Local Development Setup
+The repository includes Git hooks that automatically configure `secrets.h` to ignore local changes. This means you can modify your local `secrets.h` without Git tracking those changes. The file will remain in the repository as a template, but your local modifications will stay local.
+
+To set up the Git hooks (if they don't automatically run):
+```bash
+git config core.hooksPath .githooks
+```
+
+If you need to track changes to secrets.h again:
+```bash
+git update-index --no-skip-worktree include/secrets.h
+```

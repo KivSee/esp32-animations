@@ -13,7 +13,7 @@
 #include <sequence.h>
 #include <brightness.h>
 #include <pb_decode.h>
-#include <animation.pb.h>
+#include <kivsee/proto/render/v1/animation.pb.h>
 #include <effect.h>
 #include <animation.h>
 #include <renderer.h>

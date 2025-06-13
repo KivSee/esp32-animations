@@ -28,5 +28,8 @@ jobs:
       - name: Install PlatformIO Core
         run: pip install --upgrade platformio
 
+      - name: Copy secrets template
+        run: cp include/secrets_template.h include/secrets.h
+
       - name: Build PlatformIO Project
         run: pio run

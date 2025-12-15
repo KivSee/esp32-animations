@@ -33,6 +33,12 @@ public:
     // periodically send metrics about rendering to core 0 for reporting
     QueueHandle_t core1_metrics_queue;
 
+    #if defined(KIVSEE_DEBUG)
+    // queue from core 0 to core 1
+    // send the latest value of the led indicator brightness for core 0
+    QueueHandle_t core0_health_queue;
+    #endif
+
 };
 
 #endif //__QUEUE_MANAGER_H__

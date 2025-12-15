@@ -39,7 +39,8 @@ public:
         Serial.println("connecting to mqtt");
         if (client.connect(thing_name, statusTopic, 1, true, willMsg))
         {
-            Serial.println("connected to message broker");
+            Serial.print("connected to message broker. is connected:");
+            Serial.println(client.connected());
 
             // publish alive message
             StaticJsonDocument<128> alive_status_doc;
@@ -69,6 +70,11 @@ public:
     bool connected() override
     {
         return client.connected();
+    }
+
+    int state() override
+    {
+        return client.state();
     }
 
     bool loop() override

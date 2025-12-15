@@ -48,7 +48,6 @@ class MqttCallbacks : public MqttManagerCallbacks
 {
 
 public:
-
   void NewConfigGuidReceived(const byte *payload, unsigned int length, const char *thing_name)
   {
     handleSegmentsGuidMessage(payload, length, thing_name);
@@ -63,7 +62,8 @@ public:
   {
     float new_global_brightness;
     bool success = handleGlobalBrightnessMessage(payload, length, &new_global_brightness);
-    if (success) {
+    if (success)
+    {
       xQueueSend(queueManager.global_brightness_queue, &new_global_brightness, portMAX_DELAY);
     }
   }
@@ -74,15 +74,13 @@ MqttManager *mqttManager;
 
 void ConnectToWifi()
 {
-  if (WiFi.status() == WL_CONNECTED)
-    return;
-
   while (true)
   {
     unsigned int connectStartTime = millis();
-    WiFi.disconnect();
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(SSID, WIFI_PASSWORD);
+    WiFi.reconnect();
+    // WiFi.disconnect();
+    // WiFi.mode(WIFI_STA);
+    // WiFi.begin(SSID, WIFI_PASSWORD);
     Serial.printf("Attempting to connect to SSID: ");
     Serial.printf(SSID);
     while (millis() - connectStartTime < 10000)
@@ -102,6 +100,7 @@ void ConnectToWifi()
 
 void MonitorLoop(void *parameter)
 {
+  WiFi.mode(WIFI_STA);
   ConnectToWifi();
 
   // Port defaults to 3232
@@ -114,7 +113,8 @@ void MonitorLoop(void *parameter)
   // ArduinoOTA.setPassword("admin");
 
   ArduinoOTA
-      .onStart([]() {
+      .onStart([]()
+               {
         String type;
         if (ArduinoOTA.getCommand() == U_FLASH)
           type = "sketch";
@@ -122,15 +122,13 @@ void MonitorLoop(void *parameter)
           type = "filesystem";
 
         // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
-        Serial.println("Start updating " + type);
-      })
-      .onEnd([]() {
-        Serial.println("\nEnd");
-      })
-      .onProgress([](unsigned int progress, unsigned int total) {
-        Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-      })
-      .onError([](ota_error_t error) {
+        Serial.println("Start updating " + type); })
+      .onEnd([]()
+             { Serial.println("\nEnd"); })
+      .onProgress([](unsigned int progress, unsigned int total)
+                  { Serial.printf("Progress: %u%%\r", (progress / (total / 100))); })
+      .onError([](ota_error_t error)
+               {
         Serial.printf("Error[%u]: ", error);
         if (error == OTA_AUTH_ERROR)
           Serial.println("Auth Failed");
@@ -141,20 +139,31 @@ void MonitorLoop(void *parameter)
         else if (error == OTA_RECEIVE_ERROR)
           Serial.println("Receive Failed");
         else if (error == OTA_END_ERROR)
-          Serial.println("End Failed");
-      });
+          Serial.println("End Failed"); });
 
   ArduinoOTA.begin();
   timeManager.begin();
 
   unsigned int lastReportTime = millis();
+  float lastHealthIndicator = 0.0f;
   for (;;)
   {
-    ConnectToWifi();
+    if (WiFi.status() != WL_CONNECTED || !mqttManager->connected())
+    {
+      Serial.print("[0] reconnect wifi status: ");
+      Serial.println(WiFi.status() != WL_CONNECTED);
+      Serial.print("[0] reconnect wifi mqtt status: ");
+      Serial.println(mqttManager->connected());
+      Serial.println(mqttManager->state());
+      ConnectToWifi();
+    }
+
     mqttManager->connectToMessageBroker(thing_name);
     unsigned int currTime = millis();
     if (currTime - lastReportTime >= 5000)
     {
+      lastHealthIndicator = 1.0f - lastHealthIndicator;
+      xQueueSend(queueManager.core0_health_queue, &lastHealthIndicator, portMAX_DELAY);
       Serial.print("[0] current millis: ");
       Serial.println(millis());
       Serial.print("[0] wifi client connected: ");
@@ -192,15 +201,17 @@ void setup()
   while (!hasThingName)
   {
     String str = "no name";
-    strcpy(thing_name, str.c_str()); 
+    strcpy(thing_name, str.c_str());
     Serial.println("Thing name not configured - upload 'thing_info' file to continue");
     delay(5000);
   }
-  Serial.print("Thing name: "); Serial.println(thing_name);
+  Serial.print("Thing name: ");
+  Serial.println(thing_name);
   metrics.setup(thing_name);
 
   uint16_t number_of_leds = readNumberOfPixels();
-  if(number_of_leds == 0) {
+  if (number_of_leds == 0)
+  {
     number_of_leds = 300;
   }
 
@@ -234,7 +245,8 @@ void loop()
     lastPrint1Time = current_millis;
   }
 
-  if(renderer) {
+  if (renderer)
+  {
     renderer->loop(current_millis);
   }
 

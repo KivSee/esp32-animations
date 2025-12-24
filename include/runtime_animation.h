@@ -8,9 +8,9 @@ namespace esp32animations
 
     struct RuntimeAnimation
     {
-        // the animation ptr holds a pointer ro an animations object
-        // which has all the effects to render with thier configuration.
-        // it is created and deleted on core 0 and consumed by core 1
+        // the animation ptr holds a pointer to an animations object
+        // which has all the effects to render with their configuration.
+        // it is created and deleted in the main loop and consumed by the renderer
         kivsee_render::Animation *animation;
 
         // this is the ephoc time at which animation started.

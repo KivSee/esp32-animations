@@ -34,6 +34,7 @@ void TimeManager::loop()
     {
         // when esp millis clock showed 0, this was the epoch time in ms
         int64_t espStartTime = m_timesync.getEspStartTimeMs();
-        xQueueSend(m_epoch_time_update_queue, &espStartTime, portMAX_DELAY);
+        // Use timeout instead of portMAX_DELAY to avoid blocking indefinitely
+        xQueueSend(m_epoch_time_update_queue, &espStartTime, pdMS_TO_TICKS(100));
     }
 }

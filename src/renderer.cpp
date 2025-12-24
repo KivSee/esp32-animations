@@ -51,7 +51,7 @@ namespace esp32animations
         RuntimeAnimation new_runtime_animation;
         if (xQueueReceive(m_queueManager.runtime_animation_queue, &new_runtime_animation, 0) == pdTRUE)
         {
-            Serial.print(F("[1] received new animations with "));
+            Serial.print(F("[Renderer] received new animations with "));
             Serial.print(new_runtime_animation.animation ? new_runtime_animation.animation->effects.size() : 0);
             Serial.println(F(" effects"));
             const bool animationChanged = runtime_animation.animation != new_runtime_animation.animation;

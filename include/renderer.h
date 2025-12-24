@@ -16,9 +16,9 @@ namespace esp32animations
 {
 
     /*
-    All the renderning stuff.
-    Should run only on core 1 of the esp. 
-    The only interactions are via 
+    All the rendering stuff.
+    Runs in the main loop on ESP32-C3 (single core).
+    Interactions with other components are via queues.
     */
     class Renderer
     {
@@ -44,7 +44,7 @@ namespace esp32animations
 
     private:
         RuntimeAnimation runtime_animation = {
-            .animation = nullptr, 
+            .animation = nullptr,
             .start_time_ms_since_epoch = 0
         };
         int64_t esp_start_time = 0;

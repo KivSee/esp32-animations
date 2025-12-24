@@ -19,27 +19,10 @@ void Metrics::setup(const char *thingName)
 
 void Metrics::loop()
 {
-  esp32animations::Core1Metrics core1Metrics;
-  if(xQueueReceive(m_core1_metrics_queue, &core1Metrics, 0) == pdFALSE) {
-    return;
-  }
-
-  metricsPoint.clearFields();
-  // Report RSSI of currently connected network
-  metricsPoint.addField("rssi", WiFi.RSSI());
-  metricsPoint.addField("uptime", millis());
-  metricsPoint.addField("free heap", esp_get_free_heap_size());
-  metricsPoint.addField("total frames", core1Metrics.totalFrames);
-  metricsPoint.addField("max render ms", core1Metrics.maxFrameRenderTime);
-  metricsPoint.addField("num effects rendered", core1Metrics.numEffectsRendered);
-
-  // Print what are we exactly writing
-  // Serial.print("Writing: ");
-  // Serial.println(point.toLineProtocol());
-
-  if (!influxClient.writePoint(metricsPoint))
-  {
-    Serial.print("InfluxDB write failed: ");
-    Serial.println(influxClient.getLastErrorMessage());
-  }
+  // InfluxDB reporting is disabled on this build (ESP32-C3 / single-core),
+  // to avoid blocking network I/O from the main loop. Metrics are still
+  // collected by the renderer and placed on the queue but processing/writing
+  // is intentionally no-op here.
+  (void)m_core1_metrics_queue;
+  return;
 }

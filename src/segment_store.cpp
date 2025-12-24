@@ -103,13 +103,14 @@ void httpGetConfig(const char *thing_name)
     }
 
     HTTPClient http;
+    http.setTimeout(5000); // Set 5 second timeout to prevent indefinite blocking
     http.begin(LED_OBJECT_SERVICE_IP, port, uri);
     http.addHeader("Accept", "application/x-protobuf");
     if (segments_map)
     {
         http.addHeader("If-None-Match", String(segments_map->guid));
     }
-    
+
     int httpResponseCode = http.GET();
     if (httpResponseCode <= 0)
     {

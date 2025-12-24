@@ -35,14 +35,9 @@ FsManager fsManager;
 TimeManager timeManager(queueManager.epoch_time_update_queue);
 Metrics metrics(queueManager.core1_metrics_queue);
 
-TaskHandle_t monitorTask;
-
-void PrintCorePrefix()
-{
-  Serial.print("[");
-  Serial.print(xPortGetCoreID());
-  Serial.print("]: ");
-}
+unsigned int lastWiFiCheckTime = 0;
+unsigned int lastOTAHandleTime = 0;
+unsigned int lastReportTime = 0;
 
 class MqttCallbacks : public MqttManagerCallbacks
 {
@@ -186,13 +181,11 @@ void setup()
     return;
   }
 
-  disableCore0WDT();
-
   bool hasThingName = fsManager.ReadThingName(thing_name, 16);
   while (!hasThingName)
   {
     String str = "no name";
-    strcpy(thing_name, str.c_str()); 
+    strcpy(thing_name, str.c_str());
     Serial.println("Thing name not configured - upload 'thing_info' file to continue");
     delay(5000);
   }
@@ -212,14 +205,39 @@ void setup()
 
   mqttManager = createMqttManager(&mqttCallbacks, &fsManager);
 
-  xTaskCreatePinnedToCore(
-      MonitorLoop,   /* Function to implement the task */
-      "MonitorTask", /* Name of the task */
-      8192,          /* Stack size in words */
-      NULL,          /* Task input parameter */
-      0,             /* Priority of the task */
-      &monitorTask,  /* Task handle. */
-      0);            /* Core where the task should run */
+  ConnectToWifi();
+  ArduinoOTA.setHostname(thing_name);
+  ArduinoOTA
+      .onStart([]() {
+        String type;
+        if (ArduinoOTA.getCommand() == U_FLASH)
+          type = "sketch";
+        else
+          type = "filesystem";
+        Serial.println("Start updating " + type);
+      })
+      .onEnd([]() {
+        Serial.println("\nEnd");
+      })
+      .onProgress([](unsigned int progress, unsigned int total) {
+        Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+      })
+      .onError([](ota_error_t error) {
+        Serial.printf("Error[%u]: ", error);
+        if (error == OTA_AUTH_ERROR)
+          Serial.println("Auth Failed");
+        else if (error == OTA_BEGIN_ERROR)
+          Serial.println("Begin Failed");
+        else if (error == OTA_CONNECT_ERROR)
+          Serial.println("Connect Failed");
+        else if (error == OTA_RECEIVE_ERROR)
+          Serial.println("Receive Failed");
+        else if (error == OTA_END_ERROR)
+          Serial.println("End Failed");
+      });
+
+  ArduinoOTA.begin();
+  timeManager.begin();
 }
 
 unsigned int lastPrint1Time = millis();
@@ -228,12 +246,39 @@ void loop()
 {
   unsigned long current_millis = millis();
 
-  if (current_millis - lastPrint1Time >= 5000)
+  // WiFi connection check (every 10s)
+  if (current_millis - lastWiFiCheckTime >= 10000)
   {
-    Serial.println("[1] core 1 alive");
-    lastPrint1Time = current_millis;
+    ConnectToWifi();
+    mqttManager->connectToMessageBroker(thing_name);
+    lastWiFiCheckTime = current_millis;
   }
 
+  // OTA handle
+  ArduinoOTA.handle();
+
+  // Status reporting (every 5s)
+  if (current_millis - lastReportTime >= 5000)
+  {
+    Serial.print("[0] current millis: ");
+    Serial.println(millis());
+    Serial.print("[0] wifi client connected: ");
+    Serial.println(WiFi.status() == WL_CONNECTED);
+    Serial.print("[0] mqtt client connected: ");
+    Serial.println(mqttManager->connected());
+    Serial.print("[0] rssi: ");
+    Serial.println(WiFi.RSSI());
+    Serial.println("[1] core 1 alive");
+    lastReportTime = current_millis;
+  }
+
+  // Metrics, time sync, MQTT, sequence management
+  metrics.loop();
+  timeManager.loop();
+  mqttManager->loop();
+  sequenceManager.loop();
+
+  // Renderer loop
   if(renderer) {
     renderer->loop(current_millis);
   }

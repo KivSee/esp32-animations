@@ -31,9 +31,9 @@ bool FsManager::ReadThingKey(char *destBuffer, int bufferLength) {
       return false;
     }
 
-    // make sure the file is NULL terminated
-    destBuffer[numOfChars] = NULL;
-    destBuffer[bufferLength - 1] = NULL;
+    // make sure the file is '\0' terminated
+    destBuffer[numOfChars] = '\0';
+    destBuffer[bufferLength - 1] = '\0';
 
     file.close();
     return true;
@@ -57,9 +57,9 @@ bool FsManager::ReadThingName(char *destBuffer, int bufferLength)
       return false;
     }
 
-    // make sure the file is NULL terminated
-    destBuffer[numOfChars] = NULL;
-    destBuffer[bufferLength - 1] = NULL;
+    // make sure the file is '\0' terminated
+    destBuffer[numOfChars] = '\0';
+    destBuffer[bufferLength - 1] = '\0';
 
     file.close();
     return true;
@@ -89,6 +89,6 @@ unsigned int FsManager::ReadFromFs(const char *path, uint8_t *buffer, unsigned i
         return 0;
     }
     unsigned int bytesRead = file.read(buffer, length);
-    file.close();    
+    file.close();
     return bytesRead;
 }

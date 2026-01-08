@@ -192,12 +192,14 @@ void setup()
   while (!hasThingName)
   {
     String str = "no name";
-    strcpy(thing_name, str.c_str()); 
+    strcpy(thing_name, str.c_str());
     Serial.println("Thing name not configured - upload 'thing_info' file to continue");
     delay(5000);
   }
   Serial.print("Thing name: "); Serial.println(thing_name);
   metrics.setup(thing_name);
+
+  Serial.print("Data pin: "); Serial.println(DATA_PIN);
 
   uint16_t number_of_leds = readNumberOfPixels();
   if(number_of_leds == 0) {

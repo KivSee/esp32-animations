@@ -7,6 +7,7 @@
 #include <ArduinoJson.h>
 
 #include <animation.h>
+#include <clock_mode.h>
 
 #include "secrets.h"
 #include "protobuf_infra.h"
@@ -176,6 +177,23 @@ void SequenceManager::deleteRuntimeAnimation(kivsee_render::Animation *animation
     delete animationToDelete;
 }
 
+void SequenceManager::setClockDependencies(const int64_t *esp_start_time_ptr,
+                                            kivsee_render::segments::SegmentsMap *segments_map)
+{
+    m_esp_start_time_ptr = esp_start_time_ptr;
+    m_segments_map = segments_map;
+}
+
+::kivsee_render::Animation *SequenceManager::buildClock(const char *thing_name)
+{
+    if (!m_esp_start_time_ptr || !m_segments_map)
+    {
+        Serial.println(F("clock mode: dependencies not set"));
+        return nullptr;
+    }
+    return buildClockAnimation(thing_name, m_esp_start_time_ptr, m_segments_map);
+}
+
 void SequenceManager::sendEmptyAnimationToRenderer()
 {
     esp32animations::RuntimeAnimation new_timed_animation = {
@@ -205,16 +223,39 @@ void SequenceManager::handleTriggerInvokedMessage(const byte *payload, unsigned 
         return;
     }
 
+    Serial.print(F("got trigger: "));
+    Serial.println(triggerName);
+
+    if (strcmp(triggerName, "clock") == 0)
+    {
+        sendEmptyAnimationToRenderer();
+        waitForMemoryReclame(2000);
+
+        ::kivsee_render::Animation *animation = buildClock(thing_name);
+        m_lastTriggerName = "clock";
+        m_lastTriggerGuid = 0;
+        m_lastDecodedAnimation = animation;
+
+        // Use epoch 1 so the renderer's guard (start==0) doesn't suppress rendering.
+        // ClockEffect ignores rel_time and reads wall clock directly via esp_start_time.
+        esp32animations::RuntimeAnimation new_timed_animation = {
+            .animation = animation,
+            .start_time_ms_since_epoch = 1
+        };
+        xQueueSend(m_runtime_animation_queue, &new_timed_animation, portMAX_DELAY);
+        return;
+    }
+
     uint32_t guid = doc["guid"].as<uint32_t>();
     uint64_t startTimeMsSinceEpoch = doc["start_time_ms_since_epoch"].as<uint64_t>();
 
     char buf[200];
-    snprintf(buf, sizeof(buf), "got trigger: %s. guid: %d, start time: %lld", triggerName ? triggerName : "NONE", guid, startTimeMsSinceEpoch);
+    snprintf(buf, sizeof(buf), "guid: %d, start time: %lld", guid, startTimeMsSinceEpoch);
     Serial.println(buf);
 
     ::kivsee_render::Animation *animation = loadSequence(triggerName, guid, thing_name);
     esp32animations::RuntimeAnimation new_timed_animation = {
-        .animation = animation, 
+        .animation = animation,
         .start_time_ms_since_epoch = startTimeMsSinceEpoch
     };
     xQueueSend(m_runtime_animation_queue, &new_timed_animation, portMAX_DELAY);

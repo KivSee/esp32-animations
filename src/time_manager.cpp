@@ -2,6 +2,7 @@
 #include <time_manager.h>
 
 #include <Arduino.h>
+#include <time.h>
 
 TimeManager::TimeManager(QueueHandle_t epoch_time_update_queue)
     : m_epoch_time_update_queue(epoch_time_update_queue)
@@ -10,6 +11,9 @@ TimeManager::TimeManager(QueueHandle_t epoch_time_update_queue)
 }
 
 void TimeManager::begin() {
+    setenv("TZ", "IST-2IDT,M3.4.4,M10.5.0", 1);
+    tzset();
+
     IPAddress ntpServerIp;
     Serial.print("Time sync server IP: ");
     Serial.println(TIME_SERVER_IP);
@@ -32,8 +36,16 @@ void TimeManager::loop()
 
     if (isTimeChanged || isFirstClockUpdate)
     {
-        // when esp millis clock showed 0, this was the epoch time in ms
         int64_t espStartTime = m_timesync.getEspStartTimeMs();
+
+        time_t now_s = (time_t)((espStartTime + (int64_t)millis()) / 1000);
+        struct tm t;
+        localtime_r(&now_s, &t);
+        char timebuf[32];
+        strftime(timebuf, sizeof(timebuf), "%H:%M:%S", &t);
+        Serial.print("Synced time: ");
+        Serial.println(timebuf);
+
         xQueueSend(m_epoch_time_update_queue, &espStartTime, portMAX_DELAY);
     }
 }

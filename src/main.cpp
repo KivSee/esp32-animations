@@ -210,6 +210,8 @@ void setup()
 
   initSegmentStore(renderer->hsv_painting_array(), number_of_leds);
 
+  sequenceManager.setClockDependencies(renderer->espStartTimePtr(), getSegmentsMap());
+
   fsManager.setup();
 
   mqttManager = createMqttManager(&mqttCallbacks, &fsManager);

@@ -26,6 +26,7 @@ namespace esp32animations
         Renderer(const QueueManager &queueManager, uint16_t number_of_leds);
         void loop(unsigned long current_millis);
         kivsee_render::HSV *hsv_painting_array() const;
+        const int64_t *espStartTimePtr() const { return &esp_start_time; }
 
     private:
         void clear();

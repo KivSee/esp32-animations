@@ -77,33 +77,39 @@ void ClockEffect::Render(float /*rel_time*/, int /*cycle_index*/)
         int partial_pixels   = (int)roundf((float)(minute % 5) / 5.0f * 12.0f);
         int fill_pixel_count = full_sub_rings * 12 + partial_pixels;
 
-        // Snake: lives in sub-ring full_sub_rings (the next unlit one, 0-based).
-        // Head sweeps 0→12 cyclically over the 2-second pulse period, tail=3 pixels, wraps.
+        // Fill order starts at sub-ring 9 (1 o'clock on the face) and walks counter-clockwise.
+        // For a hardware sub-ring s, its fill-order sub-ring is (s - 9 + 12) % 12, so
+        //   fill_index = ((s - 9 + 12) % 12) * 12 + pos.
+        // The snake lives in the sub-ring whose fill_index range starts at full_sub_rings * 12.
         static const int   SNAKE_TAIL   = 3;
         static const float SNAKE_PERIOD = 12.0f; // pixels per cycle
-        int   snake_subring_start = full_sub_rings * 12;
-        float head_pos            = rel_cycle * SNAKE_PERIOD; // 0.0 → 12.0
+        int   snake_fill_start = full_sub_rings * 12;
+        float head_pos         = rel_cycle * SNAKE_PERIOD; // 0.0 → 12.0
 
         float brightness = 1.0f * brightness_base;
         for (auto &px : *segment_pixels)
         {
             int pixel_index = (int)roundf(px.relativePositionInSegment * 143.0f);
+            int hw_sub      = pixel_index / 12;
+            int pos         = pixel_index % 12;
+            int fill_sub    = (hw_sub - 9 + 12) % 12;
+            int fill_index  = fill_sub * 12 + pos;
 
-            if (pixel_index < fill_pixel_count)
+            if (fill_index < fill_pixel_count)
             {
-                px.pixel->hue = pixel_index / 143.0f;
+                px.pixel->hue = fill_index / 143.0f;
                 px.pixel->sat = 1.0f;
                 px.pixel->val = brightness;
             }
-            else if (pixel_index >= snake_subring_start && pixel_index < snake_subring_start + 12)
+            else if (fill_index >= snake_fill_start && fill_index < snake_fill_start + 12)
             {
-                int pos = pixel_index - snake_subring_start; // 0–11 within snake sub-ring
+                int snake_pos = fill_index - snake_fill_start; // 0–11 within snake sub-ring
                 // Cyclic distance behind head (wrapping over 12 pixels)
-                float dist = fmodf(head_pos - (float)pos + 12.0f, 12.0f);
+                float dist = fmodf(head_pos - (float)snake_pos + 12.0f, 12.0f);
                 if (dist <= (float)SNAKE_TAIL)
                 {
                     float snake_brightness = (1.0f - dist / (float)SNAKE_TAIL) * brightness;
-                    px.pixel->hue = pixel_index / 143.0f;
+                    px.pixel->hue = fill_index / 143.0f;
                     px.pixel->sat = 1.0f;
                     px.pixel->val = snake_brightness;
                 }

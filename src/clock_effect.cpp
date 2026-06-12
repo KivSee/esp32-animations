@@ -77,12 +77,16 @@ void ClockEffect::Render(float /*rel_time*/, int /*cycle_index*/)
         int partial_pixels   = (int)roundf((float)(minute % 5) / 5.0f * 12.0f);
         int fill_pixel_count = full_sub_rings * 12 + partial_pixels;
 
-        // Fill order starts at sub-ring 9 (1 o'clock on the face) and walks counter-clockwise.
-        // For a hardware sub-ring s, its fill-order sub-ring is (s - 9 + 12) % 12, so
-        //   fill_index = ((s - 9 + 12) % 12) * 12 + pos.
+        // Fill order starts at the sub-ring sitting at 1 o'clock on the face and walks
+        // counter-clockwise. Ring 12 is mounted with sub-ring 9 at 1 o'clock, and each
+        // ring after it (ring 1, 2, ...) is rotated clockwise by another 30°, so on
+        // ring N the sub-ring at 1 o'clock is (9 - N) mod 12.
+        // For a hardware sub-ring s, its fill-order sub-ring is (s - anchor + 12) % 12, so
+        //   fill_index = ((s - anchor + 12) % 12) * 12 + pos.
         // The snake lives in the sub-ring whose fill_index range starts at full_sub_rings * 12.
         static const int   SNAKE_TAIL   = 3;
         static const float SNAKE_PERIOD = 12.0f; // pixels per cycle
+        int   anchor_sub       = ((9 - m_ring_index) % 12 + 12) % 12;
         int   snake_fill_start = full_sub_rings * 12;
         float head_pos         = rel_cycle * SNAKE_PERIOD; // 0.0 → 12.0
 
@@ -92,7 +96,7 @@ void ClockEffect::Render(float /*rel_time*/, int /*cycle_index*/)
             int pixel_index = (int)roundf(px.relativePositionInSegment * 143.0f);
             int hw_sub      = pixel_index / 12;
             int pos         = pixel_index % 12;
-            int fill_sub    = (hw_sub - 9 + 12) % 12;
+            int fill_sub    = (hw_sub - anchor_sub + 12) % 12;
             int fill_index  = fill_sub * 12 + pos;
 
             if (fill_index < fill_pixel_count)

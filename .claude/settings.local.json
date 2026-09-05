@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git log --all --grep=\"hex\" -i)",
+      "Bash(pip install intelhex)",
+      "Bash(python -c \"import sys; print\\(sys.executable\\)\")",
+      "Bash(~/.platformio/penv/Scripts/python.exe -m pip install intelhex)",
+      "Bash(~/.platformio/penv/Scripts/python.exe -c \"import esptool; print\\(esptool.__version__\\)\")",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(~/.platformio/penv/Scripts/python.exe package-postinstall.py)"
+    ]
+  }
+}

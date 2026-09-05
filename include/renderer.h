@@ -30,7 +30,8 @@ namespace esp32animations
 
     private:
         void clear();
-        void show();
+        // returns how long the conversion + LED push took, in microseconds
+        unsigned long show();
 
     private:
         const QueueManager m_queueManager;
@@ -60,6 +61,11 @@ namespace esp32animations
             .totalFrames = 0,
             .maxFrameRenderTime = 0,
             .numEffectsRendered = 0,
+            .maxRenderUs = 0,
+            .maxShowUs = 0,
+            .sumRenderUs = 0,
+            .sumShowUs = 0,
+            .framesInWindow = 0,
         };
     };
 

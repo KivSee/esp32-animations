@@ -36,6 +36,11 @@ TimeManager timeManager(queueManager.epoch_time_update_queue);
 Metrics metrics(queueManager.core1_metrics_queue);
 
 TaskHandle_t monitorTask;
+// Handle of the arduino loopTask (core 1, runs the renderer). Captured in
+// setup() so the metrics report can watch its stack too -- task stacks are
+// fixed at creation and can never spill into PSRAM, so an overflow is a
+// crash rather than a slowdown.
+TaskHandle_t renderTask = nullptr;
 
 void PrintCorePrefix()
 {
@@ -155,14 +160,11 @@ void MonitorLoop(void *parameter)
     unsigned int currTime = millis();
     if (currTime - lastReportTime >= 5000)
     {
-      Serial.print("[0] current millis: ");
-      Serial.println(millis());
-      Serial.print("[0] wifi client connected: ");
-      Serial.println(WiFi.status() == WL_CONNECTED);
-      Serial.print("[0] mqtt client connected: ");
-      Serial.println(mqttManager->connected());
-      Serial.print("[0] rssi: ");
-      Serial.println(WiFi.RSSI());
+      // uptime and rssi are reported in the metrics block; only connectivity
+      // state is logged here.
+      Serial.printf("[0] wifi: %d  mqtt: %d\n",
+                    WiFi.status() == WL_CONNECTED,
+                    mqttManager->connected());
       lastReportTime = currTime;
     }
     metrics.loop();
@@ -178,7 +180,8 @@ void MonitorLoop(void *parameter)
 
 void setup()
 {
-  Serial.begin(115200);
+  // must match monitor_speed in platformio.ini
+  Serial.begin(460800);
 
   if (!SPIFFS.begin(true))
   {
@@ -197,6 +200,11 @@ void setup()
     delay(5000);
   }
   Serial.print("Thing name: "); Serial.println(thing_name);
+
+  // setup() runs on the arduino loopTask, which is the same task that will
+  // later call renderer->loop() from loop().
+  renderTask = xTaskGetCurrentTaskHandle();
+
   metrics.setup(thing_name);
 
   Serial.print("Data pin: "); Serial.println(DATA_PIN);
@@ -224,6 +232,8 @@ void setup()
       0,             /* Priority of the task */
       &monitorTask,  /* Task handle. */
       0);            /* Core where the task should run */
+
+  metrics.setTaskHandles(monitorTask, renderTask);
 }
 
 unsigned int lastPrint1Time = millis();

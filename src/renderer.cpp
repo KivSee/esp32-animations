@@ -21,20 +21,22 @@ namespace esp32animations
         reportMetricsIfNeeded();
 
         clear();
+        unsigned long render_us = 0;
         if (runtime_animation.animation != nullptr)
         {
             unsigned long current_animation_time = getAnimationTime(current_millis, runtime_animation);
             if (current_animation_time)
             {
-                unsigned long start_render_time = millis();
+                unsigned long start_render_time = micros();
                 kivsee_render::RenderStats renderStats = runtime_animation.animation->Render(current_animation_time);
-                unsigned long render_time = millis() - start_render_time;
+                render_us = micros() - start_render_time;
 
                 // update metrics for current frame rendering
                 m_metrics.numEffectsRendered = renderStats.num_effects_rendered;
-                if (render_time > m_metrics.maxFrameRenderTime)
+                unsigned long render_time_ms = render_us / 1000;
+                if (render_time_ms > m_metrics.maxFrameRenderTime)
                 {
-                    m_metrics.maxFrameRenderTime = render_time;
+                    m_metrics.maxFrameRenderTime = render_time_ms;
                 }
             }
         }
@@ -42,7 +44,19 @@ namespace esp32animations
         {
             m_metrics.numEffectsRendered = 0;
         }
-        show();
+        unsigned long show_us = show();
+
+        if (render_us > m_metrics.maxRenderUs)
+        {
+            m_metrics.maxRenderUs = render_us;
+        }
+        if (show_us > m_metrics.maxShowUs)
+        {
+            m_metrics.maxShowUs = show_us;
+        }
+        m_metrics.sumRenderUs += render_us;
+        m_metrics.sumShowUs += show_us;
+        m_metrics.framesInWindow++;
         m_metrics.totalFrames++;
     }
 
@@ -86,7 +100,15 @@ namespace esp32animations
 
         m_last_metrics_report_time = millis();
         xQueueSend(m_queueManager.core1_metrics_queue, &m_metrics, 0);
+
+        // reset per-window accumulators. totalFrames is cumulative and is
+        // deliberately not reset.
         m_metrics.maxFrameRenderTime = 0;
+        m_metrics.maxRenderUs = 0;
+        m_metrics.maxShowUs = 0;
+        m_metrics.sumRenderUs = 0;
+        m_metrics.sumShowUs = 0;
+        m_metrics.framesInWindow = 0;
     }
 
     // returns the relative time, in ms, of the current rendered animation.
@@ -107,8 +129,9 @@ namespace esp32animations
         memset(m_leds_hsv, 0, sizeof(kivsee_render::HSV) * m_number_of_leds);
     }
 
-    void Renderer::show()
+    unsigned long Renderer::show()
     {
+        unsigned long start_show_time = micros();
         for (int i = 0; i < m_number_of_leds; i++)
         {
             const kivsee_render::HSV &hsvVal = m_leds_hsv[i];
@@ -118,6 +141,7 @@ namespace esp32animations
         }
 
         m_leds_rgb.Show();
+        return micros() - start_show_time;
     }
 
     kivsee_render::HSV *Renderer::hsv_painting_array() const

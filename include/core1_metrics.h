@@ -12,6 +12,19 @@ namespace esp32animations
         unsigned int totalFrames;
         unsigned long maxFrameRenderTime;
         unsigned int numEffectsRendered;
+
+        // --- frame timing, in microseconds ---
+        // render = animation->Render() only.
+        // show   = HSV->RGB conversion + the blocking NeoPixelBus push.
+        // Tracked separately because only `show` scales with LED count,
+        // and only `render` scales with effect count.
+        unsigned long maxRenderUs;
+        unsigned long maxShowUs;
+        uint64_t sumRenderUs;
+        uint64_t sumShowUs;
+        // frames rendered within the current report window, used as the
+        // divisor for the averages above and to derive FPS.
+        unsigned int framesInWindow;
     };
 
 }

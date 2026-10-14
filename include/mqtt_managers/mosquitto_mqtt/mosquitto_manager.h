@@ -51,8 +51,11 @@ public:
 
             client.subscribe((String("animations/") + String(thing_name) + String("/#")).c_str(), 1);
             client.subscribe((String("obj/") + String(thing_name) + String("/guid")).c_str(), 1);
-            client.subscribe(triggerTopic, 1);
+            // brightness before trigger: the broker delivers retained messages in
+            // subscription order, so the stored brightness reaches the renderer
+            // before the first animation and it never plays at the default.
             client.subscribe(brightnessTopic, 1);
+            client.subscribe(triggerTopic, 1);
         }
         else
         {

@@ -8,7 +8,7 @@ namespace esp32animations
           m_number_of_leds(number_of_leds),
           m_leds_hsv(new kivsee_render::HSV[number_of_leds]),
           m_leds_rgb(number_of_leds, DATA_PIN),
-          m_global_brightness(1.0)
+          m_global_brightness(0.1) // dim until the retained brightness message arrives
     {
         m_leds_rgb.Begin();
     }

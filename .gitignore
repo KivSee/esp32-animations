@@ -50,3 +50,6 @@ data
 
 all.sh
 ota_prog.sh
+
+# Claude Code per-machine settings
+.claude/settings.local.json

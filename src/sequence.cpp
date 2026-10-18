@@ -5,6 +5,7 @@
 #include <HTTPClient.h>
 #include <pb_decode.h>
 #include <ArduinoJson.h>
+#include <esp_heap_caps.h>
 
 #include <animation.h>
 #include <clock_mode.h>
@@ -53,6 +54,11 @@ void SequenceManager::loop()
     HTTPClient http;
     http.begin(LED_SEQ_SERVICE_IP, port, uri);
     http.addHeader("Accept", "application/x-protobuf");
+    // Default timeout (~5s) is too short for very large sequences (thousands of
+    // effects can serialize to several MB); this is a stress-testing/headroom
+    // path, not a per-frame one, so a generous timeout costs nothing on the
+    // common case.
+    http.setTimeout(30000);
 
     int httpResponseCode = http.GET();
     if (httpResponseCode <= 0)
@@ -79,13 +85,24 @@ void SequenceManager::loop()
     }
 
     WiFiClient *httpStream = http.getStreamPtr();
+    // HTTPClient::setTimeout() above only covers connect/header handling; each
+    // Stream::readBytes() call nanopb makes while streaming the body has its own
+    // timeout (Arduino default 1000ms), which is too short for the larger chunks
+    // a slow/CPU-bound server can take a while to produce.
+    httpStream->setTimeout(30000);
     pb_istream_t nanopbStream = StreamToPbStream(httpStream, payloadSize);
 
     kivsee_render::DecodeAnimationArgs args = {
         getSegmentsMap()};
     void *decodeArgs = &args;
 
+    // Track internal and PSRAM separately across the decode: this is the
+    // single biggest allocation the firmware makes, so it is the clearest
+    // signal of whether the animation actually landed in PSRAM.
     uint32_t preDecodeHeapSize = esp_get_free_heap_size();
+    uint32_t preDecodeInternal = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+    uint32_t preDecodePsram = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+    unsigned long decodeStartUs = micros();
     Serial.print(F("decoding trigger sequence. heap size: "));
     Serial.println(preDecodeHeapSize);
 
@@ -99,6 +116,10 @@ void SequenceManager::loop()
     }
 
     uint32_t heapUsed = preDecodeHeapSize - esp_get_free_heap_size();
+    unsigned long decodeUs = micros() - decodeStartUs;
+    // signed: a negative value means that pool actually gained free space
+    int32_t internalUsed = (int32_t)preDecodeInternal - (int32_t)heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+    int32_t psramUsed = (int32_t)preDecodePsram - (int32_t)heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
 
     ::kivsee_render::Animation *animation = (::kivsee_render::Animation *)decodeArgs;
     Serial.print(F("successfully decoded sequence from protobuf. found "));
@@ -106,6 +127,8 @@ void SequenceManager::loop()
     Serial.print(F(" effects consuming "));
     Serial.print(heapUsed);
     Serial.println(F(" bytes."));
+    Serial.printf("decode took %lu us. internal used: %ld bytes, psram used: %ld bytes\n",
+                  decodeUs, (long)internalUsed, (long)psramUsed);
 
     http.end();
 

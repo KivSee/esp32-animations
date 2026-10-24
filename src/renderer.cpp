@@ -135,7 +135,10 @@ namespace esp32animations
         for (int i = 0; i < m_number_of_leds; i++)
         {
             const kivsee_render::HSV &hsvVal = m_leds_hsv[i];
-            float normalizedBrightness = hsvVal.val * hsvVal.val * m_global_brightness;
+            // val kept to 0-1 whatever the effects left in it: NeoPixelBus converts the brightness to 0-255 without
+            // clamping, and squaring would turn a negative val into a positive brightness.
+            const float val = std::max(0.0f, std::min(hsvVal.val, 1.0f));
+            float normalizedBrightness = val * val * m_global_brightness;
             HsbColor neoPixelColor(fmod(hsvVal.hue, 1.0f), hsvVal.sat, normalizedBrightness);
             m_leds_rgb.SetPixelColor(i, neoPixelColor);
         }

@@ -22,6 +22,7 @@
 #include <time_manager.h>
 #include <queue_manager.h>
 #include <metrics.h>
+#include <fw_version_gen.h>
 
 #define MAX_THING_NAME_LENGTH 16
 char thing_name[MAX_THING_NAME_LENGTH];
@@ -182,6 +183,7 @@ void setup()
 {
   // must match monitor_speed in platformio.ini
   Serial.begin(460800);
+  Serial.printf("Firmware build %d (%s)\n", FW_BUILD, FW_GIT);
 
   if (!SPIFFS.begin(true))
   {

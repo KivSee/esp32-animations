@@ -3,6 +3,7 @@
 #include <esp_heap_caps.h>
 
 #include "core1_metrics.h"
+#include "fw_version_gen.h"
 
 #define INFLUXDB_URL "http://" INFLUXDB_IP ":" INFLUXDB_PORT
 #define INFLUXDB_DB_NAME "kivsee"
@@ -170,6 +171,7 @@ void Metrics::loop()
   metricsPoint.clearFields();
   // Report RSSI of currently connected network
   metricsPoint.addField("rssi", WiFi.RSSI());
+  metricsPoint.addField("fw build", FW_BUILD);
   metricsPoint.addField("uptime", millis());
   metricsPoint.addField("free heap", esp_get_free_heap_size());
   metricsPoint.addField("total frames", core1Metrics.totalFrames);

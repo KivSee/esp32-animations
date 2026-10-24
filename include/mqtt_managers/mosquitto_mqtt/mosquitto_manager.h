@@ -6,6 +6,7 @@
 #include <ArduinoJson.h>
 #include "WiFiClient.h"
 #include <functional>
+#include <fw_version_gen.h>
 
 #ifndef MQTT_BROKER_PORT
 #define MQTT_BROKER_PORT 1883
@@ -41,11 +42,14 @@ public:
         {
             Serial.println("connected to message broker");
 
-            // publish alive message
-            StaticJsonDocument<128> alive_status_doc;
+            // publish alive message, with the firmware build so it is visible
+            // (retained) which version every device is running
+            StaticJsonDocument<192> alive_status_doc;
             alive_status_doc["thingName"] = thing_name;
             alive_status_doc["alive"] = true;
-            uint8_t aliveStatusMsg[128];
+            alive_status_doc["fw"] = FW_BUILD;
+            alive_status_doc["fw_git"] = FW_GIT;
+            uint8_t aliveStatusMsg[192];
             size_t aliveStatusMsgSize = serializeJson(alive_status_doc, aliveStatusMsg);
             client.publish(statusTopic, aliveStatusMsg, aliveStatusMsgSize, true);
 

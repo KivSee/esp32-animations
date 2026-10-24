@@ -53,3 +53,6 @@ ota_prog.sh
 
 # Claude Code per-machine settings
 .claude/settings.local.json
+
+# generated at build time by fw_version.py
+include/fw_version_gen.h

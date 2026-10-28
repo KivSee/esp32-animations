@@ -229,7 +229,7 @@ void setup()
   xTaskCreatePinnedToCore(
       MonitorLoop,   /* Function to implement the task */
       "MonitorTask", /* Name of the task */
-      8192,          /* Stack size in words */
+      32768,         /* Stack size in bytes (the sequence decode recurses per nested function; 8192 overflowed) */
       NULL,          /* Task input parameter */
       0,             /* Priority of the task */
       &monitorTask,  /* Task handle. */

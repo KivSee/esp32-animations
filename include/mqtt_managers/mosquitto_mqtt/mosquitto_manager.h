@@ -7,6 +7,7 @@
 #include "WiFiClient.h"
 #include <functional>
 #include <fw_version_gen.h>
+#include <debug_state.h>
 
 #ifndef MQTT_BROKER_PORT
 #define MQTT_BROKER_PORT 1883
@@ -44,14 +45,20 @@ public:
 
             // publish alive message, with the firmware build so it is visible
             // (retained) which version every device is running
-            StaticJsonDocument<192> alive_status_doc;
+            // and memory + what the previous boot was doing when it reset (debug_state)
+            // static: keeps it off the monitor task's stack
+            static StaticJsonDocument<1536> alive_status_doc;
+            alive_status_doc.clear();
             alive_status_doc["thingName"] = thing_name;
             alive_status_doc["alive"] = true;
             alive_status_doc["fw"] = FW_BUILD;
             alive_status_doc["fw_git"] = FW_GIT;
-            uint8_t aliveStatusMsg[192];
-            size_t aliveStatusMsgSize = serializeJson(alive_status_doc, aliveStatusMsg);
+            debug_state::fillStatus(alive_status_doc.createNestedObject("dbg"));
+            static uint8_t aliveStatusMsg[1024];
+            size_t aliveStatusMsgSize = serializeJson(alive_status_doc, aliveStatusMsg, sizeof(aliveStatusMsg));
             client.publish(statusTopic, aliveStatusMsg, aliveStatusMsgSize, true);
+
+            snprintf(debugTopic, sizeof(debugTopic), "thing/%s/debug", thing_name);
 
             client.subscribe((String("animations/") + String(thing_name) + String("/#")).c_str(), 1);
             client.subscribe((String("obj/") + String(thing_name) + String("/guid")).c_str(), 1);
@@ -68,9 +75,12 @@ public:
         }
     }
 
+    // publishes to thing/<name>/debug (not retained)
     bool publish(const char *payload) override
     {
-        return true;
+        if (!client.connected() || debugTopic[0] == '\0')
+            return false;
+        return client.publish(debugTopic, payload);
     }
 
     bool connected() override
@@ -88,6 +98,7 @@ private:
     WiFiClient net;
     PubSubClient client;
     MqttManagerCallbacks *callback;
+    char debugTopic[64] = "";
 
     void mqtt_callback(char *topic, uint8_t* payload, unsigned int length, const char *thing_name)
     {

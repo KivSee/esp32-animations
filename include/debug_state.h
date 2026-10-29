@@ -5,7 +5,7 @@
 #include <ArduinoJson.h>
 
 // Load diagnostics that survive a crash reboot (kept in RTC memory), so the
-// status message a device publishes right after rebooting tells what it was
+// debug message (thing/<name>/debug) a device publishes after rebooting tells what it was
 // doing when it died: which stage of loading a sequence, how much memory the
 // decode took from internal RAM and PSRAM, and whether an allocation failed.
 namespace debug_state

@@ -1,4 +1,5 @@
 #include "renderer.h"
+#include "debug_state.h"
 
 namespace esp32animations
 {
@@ -28,7 +29,9 @@ namespace esp32animations
             if (current_animation_time)
             {
                 unsigned long start_render_time = micros();
+                debug_state::frameStarted();
                 kivsee_render::RenderStats renderStats = runtime_animation.animation->Render(current_animation_time);
+                debug_state::frameRendered();
                 render_us = micros() - start_render_time;
 
                 // update metrics for current frame rendering

@@ -14,6 +14,7 @@
 #include "protobuf_infra.h"
 #include "segment_store.h"
 #include "runtime_animation.h"
+#include "debug_state.h"
 
 SequenceManager::SequenceManager(QueueHandle_t runtime_animation_queue, QueueHandle_t runtime_animation_delete_queue)
         : 
@@ -43,6 +44,7 @@ void SequenceManager::loop()
 
     Serial.print(F("fetching sequence from uri: "));
     Serial.println(uri);
+    debug_state::setStage(debug_state::STAGE_FETCH, triggerName);
 
     uint16_t port = (uint16_t)strtoul(LED_SEQ_SERVICE_PORT, nullptr, 10);
     if (port == 0)
@@ -106,7 +108,11 @@ void SequenceManager::loop()
     Serial.print(F("decoding trigger sequence. heap size: "));
     Serial.println(preDecodeHeapSize);
 
+    debug_state::decodeStarted();
     bool decodeSuccess = kivsee_render::DecodeAnimationFromPbStream(&nanopbStream, nullptr, &decodeArgs);
+    debug_state::decodeFinished(decodeSuccess, decodeSuccess ? ((::kivsee_render::Animation *)decodeArgs)->effects.size() : 0);
+    Serial.printf("[debug] monitor task stack headroom after decode (min-ever): %u bytes\n",
+                  (unsigned)(uxTaskGetStackHighWaterMark(nullptr) * sizeof(StackType_t)));
     if (!decodeSuccess)
     {
         Serial.print(F("failed to decode sequence proto. error: "));

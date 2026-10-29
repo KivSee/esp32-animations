@@ -53,6 +53,9 @@ public:
             size_t aliveStatusMsgSize = serializeJson(alive_status_doc, aliveStatusMsg);
             client.publish(statusTopic, aliveStatusMsg, aliveStatusMsgSize, true);
 
+            // memory and load diagnostics (debug_state) go to this topic, see publish()
+            snprintf(debugTopic, sizeof(debugTopic), "thing/%s/debug", thing_name);
+
             client.subscribe((String("animations/") + String(thing_name) + String("/#")).c_str(), 1);
             client.subscribe((String("obj/") + String(thing_name) + String("/guid")).c_str(), 1);
             // brightness before trigger: the broker delivers retained messages in
@@ -68,9 +71,12 @@ public:
         }
     }
 
+    // publishes to thing/<name>/debug (not retained)
     bool publish(const char *payload) override
     {
-        return true;
+        if (!client.connected() || debugTopic[0] == '\0')
+            return false;
+        return client.publish(debugTopic, payload);
     }
 
     bool connected() override
@@ -88,6 +94,7 @@ private:
     WiFiClient net;
     PubSubClient client;
     MqttManagerCallbacks *callback;
+    char debugTopic[64] = "";
 
     void mqtt_callback(char *topic, uint8_t* payload, unsigned int length, const char *thing_name)
     {

@@ -23,6 +23,8 @@
 #include <queue_manager.h>
 #include <metrics.h>
 #include <fw_version_gen.h>
+#include <debug_state.h>
+#include <ArduinoJson.h>
 
 #define MAX_THING_NAME_LENGTH 16
 char thing_name[MAX_THING_NAME_LENGTH];
@@ -167,6 +169,14 @@ void MonitorLoop(void *parameter)
                     WiFi.status() == WL_CONNECTED,
                     mqttManager->connected());
       lastReportTime = currTime;
+
+      // memory and load state to thing/<name>/debug, to watch a device without its serial port
+      static StaticJsonDocument<1536> debugDoc;
+      static char debugMsg[1024];
+      debugDoc.clear();
+      debug_state::fillStatus(debugDoc.to<JsonObject>());
+      serializeJson(debugDoc, debugMsg, sizeof(debugMsg));
+      mqttManager->publish(debugMsg);
     }
     metrics.loop();
     timeManager.loop();
@@ -184,6 +194,7 @@ void setup()
   // must match monitor_speed in platformio.ini
   Serial.begin(460800);
   Serial.printf("Firmware build %d (%s)\n", FW_BUILD, FW_GIT);
+  debug_state::begin();
 
   if (!SPIFFS.begin(true))
   {
@@ -229,7 +240,7 @@ void setup()
   xTaskCreatePinnedToCore(
       MonitorLoop,   /* Function to implement the task */
       "MonitorTask", /* Name of the task */
-      8192,          /* Stack size in words */
+      32768,         /* Stack size in bytes (the sequence decode recurses per nested function; 8192 overflowed) */
       NULL,          /* Task input parameter */
       0,             /* Priority of the task */
       &monitorTask,  /* Task handle. */
